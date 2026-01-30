@@ -96,15 +96,15 @@ export default function LedgerPage() {
   return (
     <div className="space-y-0">
       {/* Page Header */}
-      <div className="mb-8">
+      <header className="mb-8">
         <h1 className="text-3xl font-bold text-black">Ledger</h1>
         <p className="mt-1 text-sm text-[#666666]">
           모든 거래 내역을 조회하고 관리합니다
         </p>
-      </div>
+      </header>
 
       {/* Stats Overview */}
-      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+      <section className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4" aria-label="거래 통계 요약">
         <DataCard>
           <DataValue value="127" label="총 거래 수" size="lg" />
         </DataCard>
@@ -117,21 +117,22 @@ export default function LedgerPage() {
         <DataCard>
           <DataValue value="23" label="이체 횟수" size="lg" />
         </DataCard>
-      </div>
+      </section>
 
       {/* Filters & Search */}
-      <div className="mb-4 space-y-3 md:space-y-0 md:flex md:items-center md:justify-between">
+      <section className="mb-4 space-y-3 md:space-y-0 md:flex md:items-center md:justify-between" aria-label="거래 필터">
         <div className="space-y-3 md:space-y-0 md:flex md:items-center md:gap-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#999999]" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#999999]" aria-hidden="true" />
             <Input
               placeholder="자산 또는 거래소 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full md:w-64 border-[#EEEEEE] pl-9"
+              aria-label="거래 검색"
             />
           </div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1" role="group" aria-label="거래 유형 필터">
             {['BUY', 'SELL', 'TRANSFER', 'REWARD'].map((type) => (
               <Button
                 key={type}
@@ -139,6 +140,8 @@ export default function LedgerPage() {
                 size="sm"
                 onClick={() => setSelectedType(selectedType === type ? null : type)}
                 className={selectedType === type ? 'bg-black text-white' : 'border-[#EEEEEE]'}
+                aria-pressed={selectedType === type}
+                aria-label={`${typeConfig[type as keyof typeof typeConfig].label} 필터`}
               >
                 {typeConfig[type as keyof typeof typeConfig].label}
               </Button>
@@ -146,16 +149,16 @@ export default function LedgerPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="border-[#EEEEEE]">
-            <Filter className="mr-2 h-4 w-4" />
+          <Button variant="outline" size="sm" className="border-[#EEEEEE]" aria-label="추가 필터 열기">
+            <Filter className="mr-2 h-4 w-4" aria-hidden="true" />
             <span className="hidden sm:inline">필터</span>
           </Button>
-          <Button variant="outline" size="sm" className="border-[#EEEEEE]">
-            <Download className="mr-2 h-4 w-4" />
+          <Button variant="outline" size="sm" className="border-[#EEEEEE]" aria-label="거래 내역 내보내기">
+            <Download className="mr-2 h-4 w-4" aria-hidden="true" />
             <span className="hidden sm:inline">내보내기</span>
           </Button>
         </div>
-      </div>
+      </section>
 
       {/* Transaction List */}
       <div className="overflow-hidden rounded-lg border border-[#EEEEEE]">

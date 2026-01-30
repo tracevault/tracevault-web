@@ -105,7 +105,7 @@ export default function TaxPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+      <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-black">Tax Reports</h1>
           <p className="mt-1 text-sm text-[#666666]">
@@ -114,10 +114,13 @@ export default function TaxPage() {
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
           <div className="relative">
+            <label htmlFor="tax-year-select" className="sr-only">세금 연도 선택</label>
             <select
+              id="tax-year-select"
               value={selectedYear}
               onChange={(e) => setSelectedYear(Number(e.target.value))}
               className="appearance-none rounded-md border border-[#EEEEEE] bg-white px-3 sm:px-4 py-2 pr-8 sm:pr-10 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black"
+              aria-label="세금 연도 선택"
             >
               {taxYears.map((year) => (
                 <option key={year} value={year}>
@@ -125,14 +128,14 @@ export default function TaxPage() {
                 </option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-2 sm:right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#666666]" />
+            <ChevronDown className="pointer-events-none absolute right-2 sm:right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#666666]" aria-hidden="true" />
           </div>
-          <Button className="bg-black text-white hover:bg-black/90">
-            <Calculator className="h-4 w-4 sm:mr-2" />
+          <Button className="bg-black text-white hover:bg-black/90" aria-label="세금 재계산 실행">
+            <Calculator className="h-4 w-4 sm:mr-2" aria-hidden="true" />
             <span className="hidden sm:inline">세금 재계산</span>
           </Button>
         </div>
-      </div>
+      </header>
 
       {/* Tax Status Banner */}
       <div className="flex items-center gap-3 rounded-lg border border-[#22C55E]/30 bg-[#22C55E]/5 px-4 py-3">
@@ -151,7 +154,7 @@ export default function TaxPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4" aria-label="세금 요약">
         <DataCard>
           <DataValue value={taxSummary.totalGain} label="총 실현 이익" trend="up" />
         </DataCard>
@@ -165,17 +168,21 @@ export default function TaxPage() {
           <div className="text-[11px] uppercase tracking-[0.5px] text-white/60">
             예상 세금
           </div>
-          <div className="mt-1 text-xl sm:text-2xl font-medium tabular-nums">
+          <div className="mt-1 text-xl sm:text-2xl font-medium tabular-nums" aria-label={`예상 세금 ${taxSummary.estimatedTax}`}>
             {taxSummary.estimatedTax}
           </div>
           <div className="mt-1 text-sm text-white/60">
             실효세율 {taxSummary.effectiveRate}
           </div>
         </DataCard>
-      </div>
+      </section>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 border-b border-[#EEEEEE] overflow-x-auto">
+      <div
+        className="flex gap-1 border-b border-[#EEEEEE] overflow-x-auto"
+        role="tablist"
+        aria-label="세금 정보 탭"
+      >
         {[
           { id: 'summary', label: '월별 요약', icon: Calendar },
           { id: 'lots', label: 'Tax Lots', icon: FileText },
@@ -183,14 +190,18 @@ export default function TaxPage() {
         ].map((tab) => (
           <button
             key={tab.id}
+            role="tab"
+            id={`tab-${tab.id}`}
+            aria-selected={activeTab === tab.id}
+            aria-controls={`tabpanel-${tab.id}`}
             onClick={() => setActiveTab(tab.id as typeof activeTab)}
-            className={`flex items-center gap-1.5 sm:gap-2 border-b-2 px-3 sm:px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
+            className={`flex items-center gap-1.5 sm:gap-2 border-b-2 px-3 sm:px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-black focus:ring-inset ${
               activeTab === tab.id
                 ? 'border-black text-black'
                 : 'border-transparent text-[#666666] hover:text-black'
             }`}
           >
-            <tab.icon className="h-4 w-4" />
+            <tab.icon className="h-4 w-4" aria-hidden="true" />
             <span className="hidden sm:inline">{tab.label}</span>
             <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
           </button>
@@ -199,7 +210,12 @@ export default function TaxPage() {
 
       {/* Tab Content */}
       {activeTab === 'summary' && (
-        <div className="overflow-hidden rounded-lg border border-[#EEEEEE]">
+        <div
+          role="tabpanel"
+          id="tabpanel-summary"
+          aria-labelledby="tab-summary"
+          className="overflow-hidden rounded-lg border border-[#EEEEEE]"
+        >
           <SectionHeader
             title="Monthly Breakdown"
             marker="◆"
@@ -248,7 +264,12 @@ export default function TaxPage() {
       )}
 
       {activeTab === 'lots' && (
-        <div className="overflow-hidden rounded-lg border border-[#EEEEEE]">
+        <div
+          role="tabpanel"
+          id="tabpanel-lots"
+          aria-labelledby="tab-lots"
+          className="overflow-hidden rounded-lg border border-[#EEEEEE]"
+        >
           <SectionHeader
             title="Tax Lots"
             marker="●"
@@ -343,7 +364,12 @@ export default function TaxPage() {
       )}
 
       {activeTab === 'reports' && (
-        <div className="overflow-hidden rounded-lg border border-[#EEEEEE]">
+        <div
+          role="tabpanel"
+          id="tabpanel-reports"
+          aria-labelledby="tab-reports"
+          className="overflow-hidden rounded-lg border border-[#EEEEEE]"
+        >
           <SectionHeader
             title="Available Reports"
             marker="★"
@@ -365,8 +391,13 @@ export default function TaxPage() {
                     </div>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="border-[#EEEEEE] self-end sm:self-auto">
-                  <Download className="h-4 w-4 sm:mr-2" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-[#EEEEEE] self-end sm:self-auto"
+                  aria-label={`${report.name} 다운로드`}
+                >
+                  <Download className="h-4 w-4 sm:mr-2" aria-hidden="true" />
                   <span className="hidden sm:inline">다운로드</span>
                 </Button>
               </div>
@@ -374,8 +405,8 @@ export default function TaxPage() {
           </div>
 
           <div className="border-t border-[#EEEEEE] bg-[#FAFAFA] px-4 sm:px-6 py-4">
-            <Button className="bg-black text-white hover:bg-black/90 w-full sm:w-auto">
-              <FileText className="mr-2 h-4 w-4" />새 리포트 생성
+            <Button className="bg-black text-white hover:bg-black/90 w-full sm:w-auto" aria-label="새 세금 리포트 생성">
+              <FileText className="mr-2 h-4 w-4" aria-hidden="true" />새 리포트 생성
             </Button>
           </div>
         </div>

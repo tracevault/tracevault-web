@@ -48,18 +48,18 @@ export default function PortfolioPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-start justify-between">
+      <header className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold text-black">Portfolio</h1>
           <p className="mt-1 text-sm text-[#666666]">
             자산 현황 및 포트폴리오 분석
           </p>
         </div>
-        <Button variant="outline" size="sm" className="border-[#EEEEEE]">
-          <RefreshCw className="mr-2 h-4 w-4" />
+        <Button variant="outline" size="sm" className="border-[#EEEEEE]" aria-label="포트폴리오 데이터 새로고침">
+          <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
           새로고침
         </Button>
-      </div>
+      </header>
 
       {/* Total Value Card */}
       <DataCard className="bg-black text-white" hover={false}>
@@ -95,7 +95,7 @@ export default function PortfolioPage() {
         </div>
 
         {/* Time Range Selector */}
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="mt-6 flex flex-wrap gap-2" role="group" aria-label="기간 선택">
           {['24h', '7d', '30d', '1y', 'All'].map((range) => (
             <Button
               key={range}
@@ -107,6 +107,8 @@ export default function PortfolioPage() {
                   ? 'bg-white text-black'
                   : 'text-white/60 hover:bg-white/10 hover:text-white'
               }`}
+              aria-pressed={timeRange === range}
+              aria-label={`${range} 기간 보기`}
             >
               {range}
             </Button>
@@ -217,7 +219,7 @@ export default function PortfolioPage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+      <section className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4" aria-label="포트폴리오 요약 통계">
         <DataCard>
           <DataValue value="9" label="보유 자산 종류" />
         </DataCard>
@@ -234,7 +236,7 @@ export default function PortfolioPage() {
             trend="up"
           />
         </DataCard>
-      </div>
+      </section>
     </div>
   );
 }
