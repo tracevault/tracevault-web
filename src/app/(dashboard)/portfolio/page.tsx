@@ -63,19 +63,19 @@ export default function PortfolioPage() {
 
       {/* Total Value Card */}
       <DataCard className="bg-black text-white" hover={false}>
-        <div className="flex items-start justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
-            <div className="text-sm uppercase tracking-wide text-white/60">
+            <div className="text-xs sm:text-sm uppercase tracking-wide text-white/60">
               총 자산 가치
             </div>
-            <div className="mt-2 text-4xl font-bold tabular-nums">
+            <div className="mt-2 text-3xl sm:text-4xl font-bold tabular-nums">
               {portfolioSummary.totalValue}
             </div>
             <div className="mt-1 text-sm text-white/60">
               ≈ {portfolioSummary.totalValueUSD}
             </div>
           </div>
-          <div className="text-right">
+          <div className="sm:text-right">
             <div
               className={`flex items-center gap-1 text-lg font-medium ${
                 portfolioSummary.isPositive ? 'text-[#22C55E]' : 'text-[#EF4444]'
@@ -95,7 +95,7 @@ export default function PortfolioPage() {
         </div>
 
         {/* Time Range Selector */}
-        <div className="mt-6 flex gap-2">
+        <div className="mt-6 flex flex-wrap gap-2">
           {['24h', '7d', '30d', '1y', 'All'].map((range) => (
             <Button
               key={range}
@@ -120,9 +120,9 @@ export default function PortfolioPage() {
         <div className="lg:col-span-2 overflow-hidden rounded-lg border border-[#EEEEEE]">
           <SectionHeader title="Asset Allocation" marker="◆" />
 
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {/* Visual Bar */}
-            <div className="mb-6 flex h-4 overflow-hidden rounded-full">
+            <div className="mb-6 flex h-3 sm:h-4 overflow-hidden rounded-full">
               {assetAllocation.map((asset) => (
                 <div
                   key={asset.asset}
@@ -142,20 +142,20 @@ export default function PortfolioPage() {
                   key={asset.asset}
                   className="flex items-center justify-between border-b border-[#EEEEEE] pb-4 last:border-b-0 last:pb-0"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
                     <div
-                      className="h-10 w-10 rounded-full"
+                      className="h-8 w-8 sm:h-10 sm:w-10 rounded-full flex-shrink-0"
                       style={{ backgroundColor: asset.color }}
                     />
-                    <div>
+                    <div className="min-w-0">
                       <div className="font-medium text-black">{asset.asset}</div>
-                      <div className="text-sm text-[#666666]">{asset.name}</div>
+                      <div className="text-xs sm:text-sm text-[#666666] truncate">{asset.name}</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="font-mono font-medium">{asset.value}</div>
-                    <div className="text-sm text-[#666666]">
-                      {asset.amount} {asset.asset} · {asset.percentage}%
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-mono font-medium text-sm sm:text-base">{asset.value}</div>
+                    <div className="text-xs sm:text-sm text-[#666666]">
+                      <span className="hidden sm:inline">{asset.amount} {asset.asset} · </span>{asset.percentage}%
                     </div>
                   </div>
                 </div>
@@ -217,7 +217,7 @@ export default function PortfolioPage() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <DataCard>
           <DataValue value="9" label="보유 자산 종류" />
         </DataCard>

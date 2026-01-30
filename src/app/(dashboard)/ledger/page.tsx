@@ -104,7 +104,7 @@ export default function LedgerPage() {
       </div>
 
       {/* Stats Overview */}
-      <div className="mb-6 grid gap-4 md:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <DataCard>
           <DataValue value="127" label="총 거래 수" size="lg" />
         </DataCard>
@@ -120,18 +120,18 @@ export default function LedgerPage() {
       </div>
 
       {/* Filters & Search */}
-      <div className="mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-2">
+      <div className="mb-4 space-y-3 md:space-y-0 md:flex md:items-center md:justify-between">
+        <div className="space-y-3 md:space-y-0 md:flex md:items-center md:gap-2">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#999999]" />
             <Input
               placeholder="자산 또는 거래소 검색..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-64 border-[#EEEEEE] pl-9"
+              className="w-full md:w-64 border-[#EEEEEE] pl-9"
             />
           </div>
-          <div className="flex gap-1">
+          <div className="flex flex-wrap gap-1">
             {['BUY', 'SELL', 'TRANSFER', 'REWARD'].map((type) => (
               <Button
                 key={type}
@@ -148,11 +148,11 @@ export default function LedgerPage() {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" className="border-[#EEEEEE]">
             <Filter className="mr-2 h-4 w-4" />
-            필터
+            <span className="hidden sm:inline">필터</span>
           </Button>
           <Button variant="outline" size="sm" className="border-[#EEEEEE]">
             <Download className="mr-2 h-4 w-4" />
-            내보내기
+            <span className="hidden sm:inline">내보내기</span>
           </Button>
         </div>
       </div>
@@ -165,52 +165,86 @@ export default function LedgerPage() {
           meta={`Updated ${new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`}
         />
 
-        {/* Table Header */}
-        <div className="grid grid-cols-7 gap-4 border-b border-[#EEEEEE] bg-[#FAFAFA] px-6 py-3 text-[11px] font-medium uppercase tracking-wide text-[#666666]">
-          <div>유형</div>
-          <div>자산</div>
-          <div className="text-right">수량</div>
-          <div className="text-right">가격</div>
-          <div className="text-right">금액</div>
-          <div>거래소</div>
-          <div>일시</div>
-        </div>
-
-        {/* Transaction Rows */}
-        <div className="divide-y divide-[#EEEEEE]">
+        {/* Mobile Card View */}
+        <div className="divide-y divide-[#EEEEEE] md:hidden">
           {filteredTransactions.map((tx) => {
             const config = typeConfig[tx.type as keyof typeof typeConfig];
             const Icon = config.icon;
 
             return (
-              <div
-                key={tx.id}
-                className="grid grid-cols-7 gap-4 px-6 py-4 transition-colors hover:bg-[#FAFAFA]"
-              >
-                <div className="flex items-center gap-2">
-                  <Icon className={`h-4 w-4 ${config.color}`} />
-                  <Badge
-                    variant="outline"
-                    className={`border-current ${config.color} bg-transparent`}
-                  >
-                    {config.label}
-                  </Badge>
+              <div key={tx.id} className="p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icon className={`h-4 w-4 ${config.color}`} />
+                    <Badge
+                      variant="outline"
+                      className={`border-current ${config.color} bg-transparent`}
+                    >
+                      {config.label}
+                    </Badge>
+                    <span className="font-medium text-black">{tx.asset}</span>
+                  </div>
+                  <span className="font-mono text-sm font-medium">{tx.amount}</span>
                 </div>
-                <div className="flex items-center">
-                  <span className="font-medium text-black">{tx.asset}</span>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#666666]">{tx.exchange}</span>
+                  <span className="font-mono font-medium">{tx.total}</span>
                 </div>
-                <div className="text-right font-mono text-sm">{tx.amount}</div>
-                <div className="text-right font-mono text-sm text-[#666666]">
-                  {tx.price}
-                </div>
-                <div className="text-right font-mono text-sm font-medium">
-                  {tx.total}
-                </div>
-                <div className="text-sm text-[#666666]">{tx.exchange}</div>
-                <div className="text-sm text-[#999999]">{tx.date}</div>
+                <div className="text-xs text-[#999999]">{tx.date}</div>
               </div>
             );
           })}
+        </div>
+
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto">
+          {/* Table Header */}
+          <div className="grid grid-cols-7 gap-4 border-b border-[#EEEEEE] bg-[#FAFAFA] px-6 py-3 text-[11px] font-medium uppercase tracking-wide text-[#666666] min-w-[800px]">
+            <div>유형</div>
+            <div>자산</div>
+            <div className="text-right">수량</div>
+            <div className="text-right">가격</div>
+            <div className="text-right">금액</div>
+            <div>거래소</div>
+            <div>일시</div>
+          </div>
+
+          {/* Transaction Rows */}
+          <div className="divide-y divide-[#EEEEEE]">
+            {filteredTransactions.map((tx) => {
+              const config = typeConfig[tx.type as keyof typeof typeConfig];
+              const Icon = config.icon;
+
+              return (
+                <div
+                  key={tx.id}
+                  className="grid grid-cols-7 gap-4 px-6 py-4 transition-colors hover:bg-[#FAFAFA] min-w-[800px]"
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon className={`h-4 w-4 ${config.color}`} />
+                    <Badge
+                      variant="outline"
+                      className={`border-current ${config.color} bg-transparent`}
+                    >
+                      {config.label}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="font-medium text-black">{tx.asset}</span>
+                  </div>
+                  <div className="text-right font-mono text-sm">{tx.amount}</div>
+                  <div className="text-right font-mono text-sm text-[#666666]">
+                    {tx.price}
+                  </div>
+                  <div className="text-right font-mono text-sm font-medium">
+                    {tx.total}
+                  </div>
+                  <div className="text-sm text-[#666666]">{tx.exchange}</div>
+                  <div className="text-sm text-[#999999]">{tx.date}</div>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {filteredTransactions.length === 0 && (
@@ -219,6 +253,13 @@ export default function LedgerPage() {
           </div>
         )}
       </div>
+
+      {/* Mobile Empty State */}
+      {filteredTransactions.length === 0 && (
+        <div className="md:hidden px-6 py-12 text-center text-[#666666]">
+          <p>검색 결과가 없습니다</p>
+        </div>
+      )}
 
       {/* Pagination */}
       <div className="mt-4 flex items-center justify-between text-sm text-[#666666]">

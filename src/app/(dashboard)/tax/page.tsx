@@ -105,19 +105,19 @@ export default function TaxPage() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-black">Tax Reports</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-black">Tax Reports</h1>
           <p className="mt-1 text-sm text-[#666666]">
             세금 계산 및 리포트 생성
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="relative">
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(Number(e.target.value))}
-              className="appearance-none rounded-md border border-[#EEEEEE] bg-white px-4 py-2 pr-10 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black"
+              className="appearance-none rounded-md border border-[#EEEEEE] bg-white px-3 sm:px-4 py-2 pr-8 sm:pr-10 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-black"
             >
               {taxYears.map((year) => (
                 <option key={year} value={year}>
@@ -125,11 +125,11 @@ export default function TaxPage() {
                 </option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#666666]" />
+            <ChevronDown className="pointer-events-none absolute right-2 sm:right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#666666]" />
           </div>
           <Button className="bg-black text-white hover:bg-black/90">
-            <Calculator className="mr-2 h-4 w-4" />
-            세금 재계산
+            <Calculator className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">세금 재계산</span>
           </Button>
         </div>
       </div>
@@ -151,7 +151,7 @@ export default function TaxPage() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
         <DataCard>
           <DataValue value={taxSummary.totalGain} label="총 실현 이익" trend="up" />
         </DataCard>
@@ -161,11 +161,11 @@ export default function TaxPage() {
         <DataCard>
           <DataValue value={taxSummary.taxableGain} label="과세 대상 금액" />
         </DataCard>
-        <DataCard className="bg-black text-white" hover={false}>
+        <DataCard className="bg-black text-white col-span-2 md:col-span-1" hover={false}>
           <div className="text-[11px] uppercase tracking-[0.5px] text-white/60">
             예상 세금
           </div>
-          <div className="mt-1 text-2xl font-medium tabular-nums">
+          <div className="mt-1 text-xl sm:text-2xl font-medium tabular-nums">
             {taxSummary.estimatedTax}
           </div>
           <div className="mt-1 text-sm text-white/60">
@@ -175,7 +175,7 @@ export default function TaxPage() {
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex gap-1 border-b border-[#EEEEEE]">
+      <div className="flex gap-1 border-b border-[#EEEEEE] overflow-x-auto">
         {[
           { id: 'summary', label: '월별 요약', icon: Calendar },
           { id: 'lots', label: 'Tax Lots', icon: FileText },
@@ -184,14 +184,15 @@ export default function TaxPage() {
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id as typeof activeTab)}
-            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
+            className={`flex items-center gap-1.5 sm:gap-2 border-b-2 px-3 sm:px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap ${
               activeTab === tab.id
                 ? 'border-black text-black'
                 : 'border-transparent text-[#666666] hover:text-black'
             }`}
           >
             <tab.icon className="h-4 w-4" />
-            {tab.label}
+            <span className="hidden sm:inline">{tab.label}</span>
+            <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
           </button>
         ))}
       </div>
@@ -205,41 +206,43 @@ export default function TaxPage() {
             meta={`${selectedYear}년`}
           />
 
-          {/* Table Header */}
-          <div className="grid grid-cols-4 gap-4 border-b border-[#EEEEEE] bg-[#FAFAFA] px-6 py-3 text-[11px] font-medium uppercase tracking-wide text-[#666666]">
-            <div>월</div>
-            <div className="text-right">실현 이익</div>
-            <div className="text-right">실현 손실</div>
-            <div className="text-right">순이익</div>
-          </div>
+          <div className="overflow-x-auto">
+            {/* Table Header */}
+            <div className="grid grid-cols-4 gap-2 sm:gap-4 border-b border-[#EEEEEE] bg-[#FAFAFA] px-4 sm:px-6 py-3 text-[10px] sm:text-[11px] font-medium uppercase tracking-wide text-[#666666] min-w-[320px]">
+              <div>월</div>
+              <div className="text-right">실현 이익</div>
+              <div className="text-right">실현 손실</div>
+              <div className="text-right">순이익</div>
+            </div>
 
-          {/* Rows */}
-          <div className="divide-y divide-[#EEEEEE]">
-            {monthlyBreakdown.map((row) => (
-              <div
-                key={row.month}
-                className="grid grid-cols-4 gap-4 px-6 py-4 transition-colors hover:bg-[#FAFAFA]"
-              >
-                <div className="font-medium">{row.month}</div>
-                <div className="text-right font-mono text-[#22C55E]">{row.gain}</div>
-                <div className="text-right font-mono text-[#EF4444]">
-                  {row.loss === '₩0' ? '-' : row.loss}
+            {/* Rows */}
+            <div className="divide-y divide-[#EEEEEE]">
+              {monthlyBreakdown.map((row) => (
+                <div
+                  key={row.month}
+                  className="grid grid-cols-4 gap-2 sm:gap-4 px-4 sm:px-6 py-3 sm:py-4 transition-colors hover:bg-[#FAFAFA] min-w-[320px]"
+                >
+                  <div className="font-medium text-sm">{row.month}</div>
+                  <div className="text-right font-mono text-xs sm:text-sm text-[#22C55E]">{row.gain}</div>
+                  <div className="text-right font-mono text-xs sm:text-sm text-[#EF4444]">
+                    {row.loss === '₩0' ? '-' : row.loss}
+                  </div>
+                  <div className="text-right font-mono text-xs sm:text-sm font-medium">{row.net}</div>
                 </div>
-                <div className="text-right font-mono font-medium">{row.net}</div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          {/* Footer */}
-          <div className="grid grid-cols-4 gap-4 border-t border-[#EEEEEE] bg-[#FAFAFA] px-6 py-4 font-medium">
-            <div>합계</div>
-            <div className="text-right font-mono text-[#22C55E]">
-              {taxSummary.totalGain}
+            {/* Footer */}
+            <div className="grid grid-cols-4 gap-2 sm:gap-4 border-t border-[#EEEEEE] bg-[#FAFAFA] px-4 sm:px-6 py-3 sm:py-4 font-medium min-w-[320px]">
+              <div className="text-sm">합계</div>
+              <div className="text-right font-mono text-xs sm:text-sm text-[#22C55E]">
+                {taxSummary.totalGain}
+              </div>
+              <div className="text-right font-mono text-xs sm:text-sm text-[#EF4444]">
+                {taxSummary.totalLoss}
+              </div>
+              <div className="text-right font-mono text-xs sm:text-sm">{taxSummary.netGain}</div>
             </div>
-            <div className="text-right font-mono text-[#EF4444]">
-              {taxSummary.totalLoss}
-            </div>
-            <div className="text-right font-mono">{taxSummary.netGain}</div>
           </div>
         </div>
       )}
@@ -252,52 +255,89 @@ export default function TaxPage() {
             meta={`${taxLots.length}개 로트`}
           />
 
-          {/* Table Header */}
-          <div className="grid grid-cols-7 gap-4 border-b border-[#EEEEEE] bg-[#FAFAFA] px-6 py-3 text-[11px] font-medium uppercase tracking-wide text-[#666666]">
-            <div>자산</div>
-            <div>취득일</div>
-            <div className="text-right">수량</div>
-            <div className="text-right">취득가</div>
-            <div className="text-right">처분가</div>
-            <div className="text-right">손익</div>
-            <div>상태</div>
-          </div>
-
-          {/* Rows */}
-          <div className="divide-y divide-[#EEEEEE]">
+          {/* Mobile Card View */}
+          <div className="divide-y divide-[#EEEEEE] md:hidden">
             {taxLots.map((lot) => (
-              <div
-                key={lot.id}
-                className="grid grid-cols-7 gap-4 px-6 py-4 transition-colors hover:bg-[#FAFAFA]"
-              >
-                <div className="font-medium">{lot.asset}</div>
-                <div className="text-sm text-[#666666]">{lot.acquired}</div>
-                <div className="text-right font-mono">{lot.quantity}</div>
-                <div className="text-right font-mono text-sm">{lot.costBasis}</div>
-                <div className="text-right font-mono text-sm">
-                  {lot.proceeds || '-'}
+              <div key={lot.id} className="p-4 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{lot.asset}</span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        lot.status === 'open'
+                          ? 'border-[#3B82F6] text-[#3B82F6]'
+                          : 'border-[#666666] text-[#666666]'
+                      }
+                    >
+                      {lot.status === 'open' ? '보유 중' : '처분 완료'}
+                    </Badge>
+                  </div>
+                  <span className="font-mono text-sm">{lot.quantity}</span>
                 </div>
-                <div
-                  className={`text-right font-mono text-sm ${
-                    lot.gain ? 'text-[#22C55E]' : 'text-[#666666]'
-                  }`}
-                >
-                  {lot.gain || '-'}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-[#666666]">취득: {lot.acquired}</span>
+                  <span className="font-mono">{lot.costBasis}</span>
                 </div>
-                <div>
-                  <Badge
-                    variant="outline"
-                    className={
-                      lot.status === 'open'
-                        ? 'border-[#3B82F6] text-[#3B82F6]'
-                        : 'border-[#666666] text-[#666666]'
-                    }
-                  >
-                    {lot.status === 'open' ? '보유 중' : '처분 완료'}
-                  </Badge>
-                </div>
+                {lot.gain && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-[#666666]">손익</span>
+                    <span className="font-mono text-[#22C55E]">{lot.gain}</span>
+                  </div>
+                )}
               </div>
             ))}
+          </div>
+
+          {/* Desktop Table View */}
+          <div className="hidden md:block overflow-x-auto">
+            {/* Table Header */}
+            <div className="grid grid-cols-7 gap-4 border-b border-[#EEEEEE] bg-[#FAFAFA] px-6 py-3 text-[11px] font-medium uppercase tracking-wide text-[#666666] min-w-[800px]">
+              <div>자산</div>
+              <div>취득일</div>
+              <div className="text-right">수량</div>
+              <div className="text-right">취득가</div>
+              <div className="text-right">처분가</div>
+              <div className="text-right">손익</div>
+              <div>상태</div>
+            </div>
+
+            {/* Rows */}
+            <div className="divide-y divide-[#EEEEEE]">
+              {taxLots.map((lot) => (
+                <div
+                  key={lot.id}
+                  className="grid grid-cols-7 gap-4 px-6 py-4 transition-colors hover:bg-[#FAFAFA] min-w-[800px]"
+                >
+                  <div className="font-medium">{lot.asset}</div>
+                  <div className="text-sm text-[#666666]">{lot.acquired}</div>
+                  <div className="text-right font-mono">{lot.quantity}</div>
+                  <div className="text-right font-mono text-sm">{lot.costBasis}</div>
+                  <div className="text-right font-mono text-sm">
+                    {lot.proceeds || '-'}
+                  </div>
+                  <div
+                    className={`text-right font-mono text-sm ${
+                      lot.gain ? 'text-[#22C55E]' : 'text-[#666666]'
+                    }`}
+                  >
+                    {lot.gain || '-'}
+                  </div>
+                  <div>
+                    <Badge
+                      variant="outline"
+                      className={
+                        lot.status === 'open'
+                          ? 'border-[#3B82F6] text-[#3B82F6]'
+                          : 'border-[#666666] text-[#666666]'
+                      }
+                    >
+                      {lot.status === 'open' ? '보유 중' : '처분 완료'}
+                    </Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -314,27 +354,27 @@ export default function TaxPage() {
             {reports.map((report) => (
               <div
                 key={report.id}
-                className="flex items-center justify-between px-6 py-4 transition-colors hover:bg-[#FAFAFA]"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-6 py-4 transition-colors hover:bg-[#FAFAFA]"
               >
                 <div className="flex items-center gap-3">
-                  <FileText className="h-5 w-5 text-[#666666]" />
-                  <div>
-                    <div className="font-medium">{report.name}</div>
-                    <div className="text-sm text-[#666666]">
+                  <FileText className="h-5 w-5 text-[#666666] flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm sm:text-base truncate">{report.name}</div>
+                    <div className="text-xs sm:text-sm text-[#666666]">
                       {report.format} · {report.size} · {report.generated}
                     </div>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="border-[#EEEEEE]">
-                  <Download className="mr-2 h-4 w-4" />
-                  다운로드
+                <Button variant="outline" size="sm" className="border-[#EEEEEE] self-end sm:self-auto">
+                  <Download className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">다운로드</span>
                 </Button>
               </div>
             ))}
           </div>
 
-          <div className="border-t border-[#EEEEEE] bg-[#FAFAFA] px-6 py-4">
-            <Button className="bg-black text-white hover:bg-black/90">
+          <div className="border-t border-[#EEEEEE] bg-[#FAFAFA] px-4 sm:px-6 py-4">
+            <Button className="bg-black text-white hover:bg-black/90 w-full sm:w-auto">
               <FileText className="mr-2 h-4 w-4" />새 리포트 생성
             </Button>
           </div>
@@ -342,9 +382,9 @@ export default function TaxPage() {
       )}
 
       {/* Info Banner */}
-      <div className="flex items-start gap-3 rounded-lg border border-[#EEEEEE] bg-[#FAFAFA] px-4 py-3">
-        <Info className="mt-0.5 h-5 w-5 text-[#666666]" />
-        <div className="text-sm text-[#666666]">
+      <div className="flex items-start gap-3 rounded-lg border border-[#EEEEEE] bg-[#FAFAFA] px-3 sm:px-4 py-3">
+        <Info className="mt-0.5 h-5 w-5 text-[#666666] flex-shrink-0" />
+        <div className="text-xs sm:text-sm text-[#666666]">
           <strong className="text-black">참고:</strong> 이 계산은 참고용이며, 실제 세금
           신고 시에는 세무사와 상담하시기 바랍니다. 한국 가상자산 과세는 2027년부터
           시행되며, 연간 250만원 공제 후 22% (지방세 포함) 세율이 적용됩니다.

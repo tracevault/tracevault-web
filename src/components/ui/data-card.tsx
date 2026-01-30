@@ -45,9 +45,9 @@ export function DataValue({
   className,
 }: DataValueProps) {
   const sizeClasses = {
-    sm: 'text-lg',
-    md: 'text-2xl',
-    lg: 'text-3xl',
+    sm: 'text-base sm:text-lg',
+    md: 'text-xl sm:text-2xl',
+    lg: 'text-2xl sm:text-3xl',
   };
 
   const trendColors = {
@@ -68,7 +68,7 @@ export function DataValue({
         {value}
       </div>
       {label && (
-        <div className="text-[11px] uppercase tracking-[0.5px] text-[#666666]">
+        <div className="text-[10px] sm:text-[11px] uppercase tracking-[0.5px] text-[#666666]">
           {label}
         </div>
       )}
