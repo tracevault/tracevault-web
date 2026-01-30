@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, LogOut, User, LayoutDashboard, Settings } from 'lucide-react';
+import {
+  Menu, X, LogOut, User, LayoutDashboard, Settings,
+  BookOpen, PieChart, FileText, Link2
+} from 'lucide-react';
 import { useState } from 'react';
 
 import { Button } from '@/components/ui/button';
@@ -12,6 +15,10 @@ import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/connections', label: 'Connections', icon: Link2 },
+  { href: '/ledger', label: 'Ledger', icon: BookOpen },
+  { href: '/portfolio', label: 'Portfolio', icon: PieChart },
+  { href: '/tax', label: 'Tax', icon: FileText },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

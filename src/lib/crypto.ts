@@ -4,8 +4,8 @@
  */
 
 // Generate a random IV for AES-GCM (96 bits = 12 bytes recommended)
-function generateIV(): Uint8Array {
-  return crypto.getRandomValues(new Uint8Array(12));
+function generateIV(): Uint8Array<ArrayBuffer> {
+  return crypto.getRandomValues(new Uint8Array(12)) as Uint8Array<ArrayBuffer>;
 }
 
 // Convert ArrayBuffer to base64 string
