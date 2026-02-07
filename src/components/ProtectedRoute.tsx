@@ -12,14 +12,21 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
+  // TEMPORARY: Bypass auth for UI testing
+  const BYPASS_AUTH = true;
+
   const router = useRouter();
   const { isAuthenticated, isHydrated } = useAuthStore();
 
   useEffect(() => {
-    if (isHydrated && !isAuthenticated && !hasTokens()) {
+    if (!BYPASS_AUTH && isHydrated && !isAuthenticated && !hasTokens()) {
       router.push('/login');
     }
   }, [isHydrated, isAuthenticated, router]);
+
+  if (BYPASS_AUTH) {
+    return <>{children}</>;
+  }
 
   if (!isHydrated) {
     return (

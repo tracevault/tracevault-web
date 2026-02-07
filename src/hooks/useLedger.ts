@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
+import { mockLedgerEvents } from '@/lib/mockData';
 import type {
   EntryAccount,
   EntryAccountListResponse,
@@ -15,6 +16,9 @@ import type {
   AssetFlowResponse,
   EventTraceResponse,
 } from '@/types';
+
+// TEMPORARY: Enable mock data for UI testing without backend
+const USE_MOCK_DATA = true;
 
 const ACCOUNTS_KEY = ['entry-accounts'] as const;
 const EVENTS_KEY = ['ledger-events'] as const;
@@ -115,6 +119,29 @@ export function useLedgerEvents(params: EventsQueryParams = {}) {
   return useQuery({
     queryKey: [...EVENTS_KEY, params],
     queryFn: async () => {
+      if (USE_MOCK_DATA) {
+        // Simulate network delay
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        // Apply filters to mock data
+        let filteredEvents = [...mockLedgerEvents.events];
+        if (params.asset_symbol) {
+          filteredEvents = filteredEvents.filter(
+            (e) => e.asset_id.symbol === params.asset_symbol
+          );
+        }
+        if (params.event_type) {
+          filteredEvents = filteredEvents.filter(
+            (e) => e.event_type === params.event_type
+          );
+        }
+        return {
+          events: filteredEvents,
+          pagination: {
+            ...mockLedgerEvents.pagination,
+            total: filteredEvents.length,
+          },
+        };
+      }
       const url = `/api/v1/ledger/events${queryString ? `?${queryString}` : ''}`;
       const response = await apiClient<LedgerEventListResponse>(url);
       return response;

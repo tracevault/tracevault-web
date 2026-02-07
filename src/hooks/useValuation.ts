@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
+import { mockPortfolio } from '@/lib/mockData';
 import type {
   PriceData,
   PriceHistoryResponse,
@@ -13,6 +14,9 @@ import type {
   PriceHistoryQueryParams,
   PortfolioHistoryQueryParams,
 } from '@/types';
+
+// TEMPORARY: Enable mock data for UI testing without backend
+const USE_MOCK_DATA = true;
 
 const PRICE_KEY = ['price'] as const;
 const PORTFOLIO_KEY = ['portfolio'] as const;
@@ -127,8 +131,14 @@ export function usePortfolio(localCurrency?: string) {
 
   return useQuery({
     queryKey: [...PORTFOLIO_KEY, 'current', localCurrency],
-    queryFn: () =>
-      apiClient<PortfolioResponse>(`/api/v1/valuation/portfolio${queryParams}`),
+    queryFn: async () => {
+      if (USE_MOCK_DATA) {
+        // Simulate network delay
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return mockPortfolio;
+      }
+      return apiClient<PortfolioResponse>(`/api/v1/valuation/portfolio${queryParams}`);
+    },
     staleTime: 30 * 1000, // 30 seconds
   });
 }

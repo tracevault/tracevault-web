@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
+import { mockTaxSummary, mockTaxLots, mockTaxReports } from '@/lib/mockData';
 import type {
   TaxProfile,
   TaxCalculationResponse,
@@ -15,6 +16,9 @@ import type {
   GenerateTaxReportRequest,
   TaxLotsQueryParams,
 } from '@/types';
+
+// TEMPORARY: Enable mock data for UI testing without backend
+const USE_MOCK_DATA = true;
 
 const PROFILES_KEY = ['tax-profiles'] as const;
 const SUMMARY_KEY = ['tax-summary'] as const;
@@ -104,8 +108,13 @@ export function useCalculateTax() {
 export function useTaxSummary(taxYear: number) {
   return useQuery({
     queryKey: [...SUMMARY_KEY, taxYear],
-    queryFn: () =>
-      apiClient<TaxSummary>(`/api/v1/tax/summary?tax_year=${taxYear}`),
+    queryFn: async () => {
+      if (USE_MOCK_DATA) {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return mockTaxSummary;
+      }
+      return apiClient<TaxSummary>(`/api/v1/tax/summary?tax_year=${taxYear}`);
+    },
     enabled: !!taxYear,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -133,6 +142,25 @@ export function useTaxLots(params: TaxLotsQueryParams = {}) {
   return useQuery({
     queryKey: [...LOTS_KEY, params],
     queryFn: async () => {
+      if (USE_MOCK_DATA) {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        let filteredLots = [...mockTaxLots.lots];
+        if (params.asset_symbol) {
+          filteredLots = filteredLots.filter(
+            (lot) => lot.asset_id.symbol === params.asset_symbol
+          );
+        }
+        if (params.include_consumed === false) {
+          filteredLots = filteredLots.filter((lot) => !lot.is_consumed);
+        }
+        return {
+          lots: filteredLots,
+          pagination: {
+            ...mockTaxLots.pagination,
+            total: filteredLots.length,
+          },
+        };
+      }
       const url = `/api/v1/tax/lots${queryString ? `?${queryString}` : ''}`;
       const response = await apiClient<TaxLotListResponse>(url);
       return response;
@@ -172,6 +200,13 @@ export function useTaxReports(taxYear?: number) {
   return useQuery({
     queryKey: [...REPORTS_KEY, taxYear],
     queryFn: async () => {
+      if (USE_MOCK_DATA) {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        if (taxYear) {
+          return mockTaxReports.filter((r) => r.tax_year === taxYear);
+        }
+        return mockTaxReports;
+      }
       const response = await apiClient<TaxReportListResponse>(
         `/api/v1/tax/reports${queryParams}`
       );

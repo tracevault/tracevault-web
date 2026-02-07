@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
+import { mockConnections } from '@/lib/mockData';
 import type {
   Connection,
   ConnectionListResponse,
@@ -13,6 +14,9 @@ import type {
   TestConnectionResponse,
   ServerPublicKeyResponse,
 } from '@/types';
+
+// TEMPORARY: Enable mock data for UI testing without backend
+const USE_MOCK_DATA = true;
 
 const CONNECTIONS_KEY = ['connections'] as const;
 const PUBLIC_KEY_KEY = ['server-public-key'] as const;
@@ -37,6 +41,10 @@ export function useConnections() {
   return useQuery({
     queryKey: CONNECTIONS_KEY,
     queryFn: async () => {
+      if (USE_MOCK_DATA) {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return mockConnections;
+      }
       const response = await apiClient<ConnectionListResponse>(
         '/api/v1/connections'
       );
