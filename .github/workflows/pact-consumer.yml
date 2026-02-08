@@ -1,0 +1,34 @@
+name: Pact Consumer Tests
+
+on:
+  pull_request:
+    paths:
+      - 'tests/pact/**'
+      - 'src/lib/api/**'
+      - 'src/hooks/**'
+
+jobs:
+  pact-consumer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run Pact Consumer Tests
+        run: npm run test:pact
+
+      - name: Publish Pacts to Broker
+        if: github.event_name == 'pull_request'
+        run: |
+          npx pact-broker publish pacts/ \
+            --consumer-app-version=${{ github.sha }} \
+            --broker-base-url=${{ secrets.PACT_BROKER_URL }} \
+            --broker-username=${{ secrets.PACT_BROKER_USERNAME }} \
+            --broker-password=${{ secrets.PACT_BROKER_PASSWORD }} \
+            --tag=${{ github.head_ref }}
