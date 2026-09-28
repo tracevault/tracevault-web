@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Loader2, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
-import { Progress } from '@/components/ui/progress';
-import { useSyncProgress } from '@/hooks';
-import type { SyncStatus } from '@/types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api';
+import type { SyncStatusResponse } from '@/types';
+import type { components } from '@/types/generated/http';
+import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { useSyncProgress } from '@/hooks/useSyncProgress';
 
 interface SyncProgressProps {
   connectionId: string;
@@ -13,152 +15,67 @@ interface SyncProgressProps {
   autoConnect?: boolean;
 }
 
-const statusMessages: Record<SyncStatus, string> = {
-  idle: '대기 중',
-  starting: '동기화 시작 중...',
-  fetching_trades: '거래 내역 가져오는 중...',
-  fetching_deposits: '입금 내역 가져오는 중...',
-  fetching_withdrawals: '출금 내역 가져오는 중...',
-  processing: '데이터 처리 중...',
-  completed: '동기화 완료',
-  failed: '동기화 실패',
-};
-
-export function SyncProgress({
-  connectionId,
-  onCompleted,
-  onError,
-  autoConnect = true,
-}: SyncProgressProps) {
-  const { progress, isConnected, error, connect, disconnect } = useSyncProgress(
-    connectionId,
-    {
-      onCompleted: (prog) => {
-        onCompleted?.();
-      },
-      onError: (err) => {
-        onError?.(err);
-      },
-    }
-  );
-
+export function SyncProgress({ connectionId, onCompleted, onError, autoConnect = true }: SyncProgressProps) {
+  const { progress, error, connect, disconnect } = useSyncProgress(connectionId, { onCompleted, onError });
   useEffect(() => {
-    if (autoConnect && connectionId) {
-      connect();
-    }
-
-    return () => {
-      disconnect();
-    };
-  }, [autoConnect, connectionId, connect, disconnect]);
-
-  if (!progress && !isConnected) {
-    if (error) {
-      return (
-        <div className="flex items-center gap-2 text-sm text-destructive">
-          <XCircle className="h-4 w-4" />
-          <span>{error}</span>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <RefreshCw className="h-4 w-4" />
-        <span>동기화 대기 중...</span>
-      </div>
-    );
-  }
-
-  if (!progress) {
-    return (
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <Loader2 className="h-4 w-4 animate-spin" />
-        <span>연결 중...</span>
-      </div>
-    );
-  }
-
-  const statusMessage = statusMessages[progress.status] || progress.message;
-  const isCompleted = progress.status === 'completed';
-  const isFailed = progress.status === 'failed';
-
+    if (autoConnect) connect();
+    return disconnect;
+  }, [autoConnect, connect, disconnect]);
+  const failed = !!error || progress?.status === 'failed';
+  const complete = progress?.status === 'completed';
   return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm">
-        <div className="flex items-center gap-2">
-          {isCompleted ? (
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-          ) : isFailed ? (
-            <XCircle className="h-4 w-4 text-destructive" />
-          ) : (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          )}
-          <span
-            className={
-              isCompleted
-                ? 'text-green-600'
-                : isFailed
-                  ? 'text-destructive'
-                  : ''
-            }
-          >
-            {statusMessage}
-          </span>
-        </div>
-        <span className="text-muted-foreground">
-          {progress.progress_percent.toFixed(0)}%
-        </span>
+    <div className="space-y-2" role="status" aria-live="polite">
+      <div className="flex items-center gap-2 text-sm">
+        {failed ? <XCircle className="h-4 w-4 text-destructive" /> : complete ?
+          <CheckCircle2 className="h-4 w-4 text-green-500" /> : <Loader2 className="h-4 w-4 animate-spin" />}
+        <span>{error || (complete ? '수집 완료' : progress?.status === 'idle' ? '동기화 대기 중' : '동기화 진행 중…')}</span>
       </div>
-
-      <Progress
-        value={progress.progress_percent}
-        className={isFailed ? 'bg-destructive/20' : undefined}
-      />
-
-      {progress.items_total > 0 && (
-        <div className="text-xs text-muted-foreground">
-          {progress.items_processed} / {progress.items_total} 항목 처리됨
-        </div>
-      )}
-
-      {progress.error && (
-        <div className="text-xs text-destructive">{progress.error}</div>
-      )}
+      {progress && progress.events_pending > 0 && <p className="text-xs text-muted-foreground">원장으로 전송 대기: {progress.events_pending}건</p>}
+      {progress && progress.events_failed > 0 && <p className="text-xs text-destructive">전송 전 검증 실패: {progress.events_failed}건 — 수집 기록 검토가 필요합니다.</p>}
+      {progress && <p className="text-xs text-muted-foreground">저장된 거래·입출금 내역: {progress.events_synced}건</p>}
     </div>
   );
 }
 
-// Compact version for use in cards/lists
-export function SyncProgressCompact({
-  connectionId,
-}: {
-  connectionId: string;
-}) {
-  const { progress, isConnected } = useSyncProgress(connectionId, {
-    autoReconnect: false,
+export function SyncProgressCompact({ connectionId }: { connectionId: string }) {
+  const queryClient = useQueryClient();
+  const { data, error } = useQuery({
+    queryKey: ['connections', connectionId, 'status'],
+    queryFn: () => apiClient<SyncStatusResponse>(`/api/v1/connections/${encodeURIComponent(connectionId)}/status`),
+    staleTime: 5000,
+    refetchInterval: query => query.state.data?.status === 'syncing' || (query.state.data?.events_pending ?? 0) > 0 ? 2000 : false,
   });
-
-  if (!isConnected || !progress) {
-    return null;
-  }
-
-  const isCompleted = progress.status === 'completed';
-  const isFailed = progress.status === 'failed';
-
-  return (
-    <div className="flex items-center gap-2">
-      {isCompleted ? (
-        <CheckCircle2 className="h-4 w-4 text-green-500" />
-      ) : isFailed ? (
-        <XCircle className="h-4 w-4 text-destructive" />
-      ) : (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      )}
-      <Progress value={progress.progress_percent} className="h-1 w-16" />
-      <span className="text-xs text-muted-foreground">
-        {progress.progress_percent.toFixed(0)}%
-      </span>
-    </div>
-  );
+  const ingestion = useQuery({
+    queryKey: ['ledger', 'ingestion', connectionId],
+    queryFn: () => apiClient<components['schemas']['IngestionStatus']>(`/api/v1/ledger/ingestion?connection_id=${encodeURIComponent(connectionId)}`),
+    staleTime: 5000,
+    // Delivery can lag Collector's acknowledgment. Keep checking while the card is visible.
+    refetchInterval: query => (query.state.data?.pending ?? 0) > 0 ? 2000 : 15000,
+  });
+  const retry = useMutation({
+    mutationFn: () => apiClient<components['schemas']['RetryIngestionResult']>('/api/v1/ledger/ingestion/retry', {
+      method: 'POST', body: JSON.stringify({ connection_id: connectionId }),
+    }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['ledger', 'ingestion', connectionId] }),
+  });
+  useEffect(() => {
+    if (data?.status) void queryClient.invalidateQueries({ predicate: query => query.queryKey[0] === 'connections' && (query.queryKey.length === 1 || query.queryKey[1] === 'retained') });
+  }, [data?.status, queryClient]);
+  if (error) return <p className="text-xs text-destructive">동기화 상태를 확인할 수 없습니다.</p>;
+  if (!data) return null;
+  return <div className="space-y-1 text-xs" role="status" aria-live="polite">
+    {data.status === 'syncing' && <p className="text-muted-foreground">거래 내역을 수집하는 중입니다…</p>}
+    {data.status === 'failed' && <p className="text-destructive">{data.error_message || '수집에 실패했습니다.'}</p>}
+    {data.events_pending > 0 && <p className="text-muted-foreground">원장으로 전송 대기: {data.events_pending}건</p>}
+    {data.events_failed > 0 && <p className="text-destructive">전송 전 검증 실패: {data.events_failed}건 — 수집 기록 검토가 필요합니다.</p>}
+    {ingestion.error && <p className="text-destructive">원장 반영 상태를 확인할 수 없습니다.</p>}
+    {ingestion.data && <p className="text-muted-foreground">원장 반영: {ingestion.data.complete}건 · 처리 대기: {ingestion.data.pending}건</p>}
+    {(ingestion.data?.failed ?? 0) > 0 && <div className="space-y-1">
+      <p className="text-destructive">원장 처리 실패: {ingestion.data!.failed}건. 처리 완료 전에는 잔액과 보고서를 확정할 수 없습니다.</p>
+      <button type="button" disabled={retry.isPending} onClick={() => retry.mutate()} className="underline disabled:opacity-50">
+        {retry.isPending ? '재시도 요청 중…' : '실패한 내역 다시 처리'}
+      </button>
+    </div>}
+    {retry.error && <p className="text-destructive">재시도를 요청하지 못했습니다. 잠시 후 다시 시도하세요.</p>}
+  </div>;
 }

@@ -1,6 +1,8 @@
 'use client';
 
+import { EmailVerification } from '@/components/settings/EmailVerification';
 import { Settings } from 'lucide-react';
+import Link from 'next/link';
 import { ProfileForm, PasswordChangeForm, DeleteAccountModal } from '@/components/settings';
 
 export default function SettingsPage() {
@@ -18,6 +20,8 @@ export default function SettingsPage() {
 
       <div className="grid gap-6">
         <ProfileForm />
+        <EmailVerification />
+        <section className="space-y-3 rounded-lg border p-6"><h2 className="text-lg font-semibold">2단계 인증</h2><p className="text-sm text-muted-foreground">인증 앱과 복구 코드로 계정을 보호합니다.</p><Link className="text-sm underline" href="/two-factor">인증 앱 및 복구 코드 관리</Link></section>
         <PasswordChangeForm />
         <DeleteAccountModal />
       </div>

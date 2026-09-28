@@ -1,4 +1,5 @@
-import { PactV4 } from '@pact-foundation/pact';
+import { describe, it, expect } from 'vitest';
+import { PactV4, MatchersV3 } from '@pact-foundation/pact';
 import path from 'path';
 
 const provider = new PactV4({
@@ -22,15 +23,15 @@ describe('Portfolio API Contract', () => {
       .willRespondWith(200, (builder) => {
         builder.headers({ 'Content-Type': 'application/json' });
         builder.jsonBody({
-          total_value: provider.like('50000000.00'),
+          total_value: MatchersV3.like('50000000.00'),
           currency: 'KRW',
-          assets: provider.eachLike({
-            asset_id: provider.like('BTC'),
-            symbol: provider.like('BTC'),
-            amount: provider.like('0.5'),
-            value_krw: provider.like('25000000.00'),
+          assets: MatchersV3.eachLike({
+            asset_id: MatchersV3.like('BTC'),
+            symbol: MatchersV3.like('BTC'),
+            amount: MatchersV3.like('0.5'),
+            value_krw: MatchersV3.like('25000000.00'),
           }),
-          updated_at: provider.like('2026-02-08T00:00:00Z'),
+          updated_at: MatchersV3.like('2026-02-08T00:00:00Z'),
         });
       })
       .executeTest(async (mockServer) => {
@@ -63,17 +64,17 @@ describe('Portfolio API Contract', () => {
       })
       .willRespondWith(200, (builder) => {
         builder.jsonBody({
-          events: provider.eachLike({
-            event_id: provider.like('evt-001'),
-            event_type: provider.like('SELL'),
-            asset: provider.like('BTC'),
-            amount: provider.like('0.1'),
-            timestamp: provider.like('2026-02-08T00:00:00Z'),
+          events: MatchersV3.eachLike({
+            event_id: MatchersV3.like('evt-001'),
+            event_type: MatchersV3.like('SELL'),
+            asset: MatchersV3.like('BTC'),
+            amount: MatchersV3.like('0.1'),
+            timestamp: MatchersV3.like('2026-02-08T00:00:00Z'),
           }),
           pagination: {
-            page: provider.like(1),
-            limit: provider.like(20),
-            total: provider.like(100),
+            page: MatchersV3.like(1),
+            limit: MatchersV3.like(20),
+            total: MatchersV3.like(100),
           },
         });
       })
@@ -103,11 +104,11 @@ describe('Portfolio API Contract', () => {
       .willRespondWith(200, (builder) => {
         builder.jsonBody({
           year: 2026,
-          jurisdiction: provider.like('KR'),
-          total_realized_gain: provider.like('5000000.00'),
-          total_tax: provider.like('1100000.00'),
-          deduction: provider.like('2500000.00'),
-          events_count: provider.like(42),
+          jurisdiction: MatchersV3.like('KR'),
+          total_realized_gain: MatchersV3.like('5000000.00'),
+          total_tax: MatchersV3.like('1100000.00'),
+          deduction: MatchersV3.like('2500000.00'),
+          events_count: MatchersV3.like(42),
         });
       })
       .executeTest(async (mockServer) => {
@@ -134,11 +135,11 @@ describe('Portfolio API Contract', () => {
       })
       .willRespondWith(200, (builder) => {
         builder.jsonBody({
-          connections: provider.eachLike({
-            id: provider.like('conn-001'),
-            exchange: provider.like('upbit'),
-            status: provider.like('active'),
-            last_synced_at: provider.like('2026-02-08T00:00:00Z'),
+          connections: MatchersV3.eachLike({
+            id: MatchersV3.like('conn-001'),
+            exchange: MatchersV3.like('upbit'),
+            status: MatchersV3.like('active'),
+            last_synced_at: MatchersV3.like('2026-02-08T00:00:00Z'),
           }),
         });
       })

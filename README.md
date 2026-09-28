@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TraceVault Web
 
-## Getting Started
+The production Web client for the TraceVault services. It consumes the canonical
+HTTP contract from `../tracevault-contracts/http/openapi.json`; generated types are
+checked for drift with `npm run contracts:check`.
 
-First, run the development server:
+The release bundle uses local operating-system font stacks. Building and rendering
+the application does not download fonts from a third-party host.
+
+## Local setup
+
+Copy `.env.example` to `.env.local`, set `NEXT_PUBLIC_API_URL`, then run:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The application is served at `http://localhost:3000` by default.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The release image uses the same Web origin for API calls. Build it with
+`NEXT_PUBLIC_API_URL=/gateway` and `API_PROXY_TARGET` set to the private Gateway
+HTTP(S) origin (for example, `http://gateway:8080`). The Next server rewrites
+`/gateway/api/v1/*` to Gateway's `/api/v1/*`; it does not change the canonical
+request or response body. `API_PROXY_TARGET` must be an origin without a path,
+query or fragment. If it is absent, no proxy route is installed. The Dockerfile
+builds the standalone production bundle with `npm run build -- --webpack`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## WalletConnect QR configuration
 
-## Learn More
+WalletConnect QR is optional and fails closed when `NEXT_PUBLIC_REOWN_PROJECT_ID`
+is absent. Create a public project ID in the Reown Dashboard, restrict its origin
+allowlist to the deployed TraceVault origin and supply it at build time. The QR flow
+requests only `personal_sign` for the six declared EVM networks or
+`solana_signMessage` for Solana, then submits the signature to the same five-minute
+TraceVault ownership challenge used by injected wallets. It disconnects the remote
+session after the ownership attempt. Never place a wallet private key in a public
+environment value.
 
-To learn more about Next.js, take a look at the following resources:
+## Browser Push configuration
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Browser Push is optional and fails closed when its public build configuration is
+absent. Supply all five values when building a release that advertises browser Push:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```text
+NEXT_PUBLIC_FIREBASE_API_KEY
+NEXT_PUBLIC_FIREBASE_PROJECT_ID
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+NEXT_PUBLIC_FIREBASE_APP_ID
+NEXT_PUBLIC_FIREBASE_VAPID_KEY
+```
 
-## Deploy on Vercel
+These Firebase Web application values and the VAPID public key are public client
+configuration. Never place a Firebase service-account credential or VAPID private
+key in a `NEXT_PUBLIC_*` value. Next.js embeds these values during `next build`, so
+setting them only when starting an already-built image does not configure the client.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The user must press **이 브라우저에서 푸시 받기** before the application requests
+notification permission. The root `/tracevault-push-sw.js` service worker accepts
+only TraceVault's notifications page and canonical retained-report route for click
+navigation. Registration proves only that a token was obtained and retained by the
+owned device API; provider acceptance and browser receipt are separate operations.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Verification
+
+```bash
+npm test
+npm run typecheck
+npm run lint
+npm run contracts:check
+npm run build
+npm audit --omit=dev
+```

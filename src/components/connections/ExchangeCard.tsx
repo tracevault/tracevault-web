@@ -1,12 +1,10 @@
 'use client';
 
-import Image from 'next/image';
 import {
   RefreshCw,
   Trash2,
   ExternalLink,
   Clock,
-  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,31 +18,38 @@ import {
 import { ConnectionStatus } from './ConnectionStatus';
 import { SyncProgressCompact } from './SyncProgress';
 import { getExchangeInfo } from '@/lib/exchanges';
-import type { Connection, ExchangeType } from '@/types';
+import { capabilityMessage } from '@/lib/exchangeCapabilities';
+import type { Connection, ExchangeType, ExchangeCapability } from '@/types';
 
 interface ExchangeCardProps {
   connection?: Connection;
+  capability?: ExchangeCapability;
   exchange: ExchangeType;
   onConnect?: () => void;
   onSync?: () => void;
   onDelete?: () => void;
+  onReplace?: () => void;
   isDeleting?: boolean;
   isSyncing?: boolean;
 }
 
 export function ExchangeCard({
   connection,
+  capability,
   exchange,
   onConnect,
   onSync,
   onDelete,
+  onReplace,
   isDeleting = false,
   isSyncing = false,
 }: ExchangeCardProps) {
   const exchangeInfo = getExchangeInfo(exchange);
+  const available = capability?.availability === 'available';
+  const features = capability ? { trades: capability.trades, deposits: capability.deposits, withdrawals: capability.withdrawals } : {};
   const isConnected = !!connection && connection.status !== 'disconnected';
 
-  const formatLastSynced = (dateStr: string | null) => {
+  const formatLastSynced = (dateStr: string | undefined) => {
     if (!dateStr) return '동기화된 적 없음';
     const date = new Date(dateStr);
     const now = new Date();
@@ -60,61 +65,42 @@ export function ExchangeCard({
   };
 
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="border-b pb-4">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-muted">
-              <Image
-                src={exchangeInfo.logoUrl}
-                alt={exchangeInfo.name}
-                fill
-                className="object-contain p-1"
-                onError={(e) => {
-                  // Fallback to text if image fails
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
+    <Card className="overflow-hidden" data-connection-id={connection?.id}>
+      <CardHeader className="grid-cols-1 border-b pb-4">
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">
               <div className="absolute inset-0 flex items-center justify-center text-lg font-bold text-muted-foreground">
                 {exchangeInfo.name[0]}
               </div>
             </div>
-            <div>
-              <CardTitle className="text-lg">{exchangeInfo.name}</CardTitle>
+            <div className="min-w-0">
+              <CardTitle className="break-all text-lg">{exchangeInfo.name}{connection?.label ? ` · ${connection.label}` : ''}</CardTitle>
               <CardDescription className="text-xs">
-                {exchangeInfo.description}
+                {connection ? <span className="break-all">계정 번호 {connection.id}</span> : exchangeInfo.description}
               </CardDescription>
             </div>
           </div>
-          {connection && <ConnectionStatus status={connection.status} />}
+          {connection && <ConnectionStatus status={connection.status} className="shrink-0 whitespace-nowrap" />}
         </div>
       </CardHeader>
 
       <CardContent className="pt-4">
+        <p className="mb-3 text-sm text-muted-foreground" role="status">{capabilityMessage(capability)}</p>
         {isConnected ? (
           <div className="space-y-3">
             {/* Last synced info */}
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
-              <span>마지막 동기화: {formatLastSynced(connection.last_synced_at)}</span>
+              <span>마지막 동기화: {formatLastSynced(connection.last_sync_at)}</span>
             </div>
 
-            {/* Error message if any */}
-            {connection.error_message && (
-              <div className="flex items-start gap-2 rounded-md bg-destructive/10 p-2 text-sm text-destructive">
-                <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                <span>{connection.error_message}</span>
-              </div>
-            )}
-
             {/* Sync progress if syncing */}
-            {connection.status === 'syncing' && (
-              <SyncProgressCompact connectionId={connection.id} />
-            )}
+            <SyncProgressCompact connectionId={connection.id} />
 
             {/* Features */}
             <div className="flex flex-wrap gap-1">
-              {Object.entries(exchangeInfo.features).map(
+              {Object.entries(features).map(
                 ([feature, enabled]) =>
                   enabled && (
                     <span
@@ -122,11 +108,11 @@ export function ExchangeCard({
                       className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
                     >
                       {feature === 'trades'
-                        ? '거래'
+                        ? '거래 이력'
                         : feature === 'deposits'
-                          ? '입금'
+                          ? '입금 이력'
                           : feature === 'withdrawals'
-                            ? '출금'
+                            ? '출금 이력'
                             : '잔액'}
                     </span>
                   )
@@ -136,11 +122,10 @@ export function ExchangeCard({
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              {exchangeInfo.name}의 API Key를 등록하여 거래 내역을 자동으로
-              동기화하세요.
+              {connection ? '연결이 해제되었습니다. 기존 거래 내역은 보관됩니다.' : available ? `${exchangeInfo.name}의 API Key를 등록하여 거래 내역을 동기화하세요.` : '현재 자동 연결을 사용할 수 없습니다.'}
             </p>
             <div className="flex flex-wrap gap-1">
-              {Object.entries(exchangeInfo.features).map(
+              {Object.entries(features).map(
                 ([feature, enabled]) =>
                   enabled && (
                     <span
@@ -148,11 +133,11 @@ export function ExchangeCard({
                       className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
                     >
                       {feature === 'trades'
-                        ? '거래'
+                        ? '거래 이력'
                         : feature === 'deposits'
-                          ? '입금'
+                          ? '입금 이력'
                           : feature === 'withdrawals'
-                            ? '출금'
+                            ? '출금 이력'
                             : '잔액'}
                     </span>
                   )
@@ -173,14 +158,15 @@ export function ExchangeCard({
           API 가이드
         </a>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           {isConnected ? (
             <>
+              {connection.credential_revision && onReplace && <Button variant="outline" size="sm" onClick={onReplace} disabled={!available || isSyncing || connection.status === 'syncing'}>키 교체</Button>}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onSync}
-                disabled={isSyncing || connection.status === 'syncing'}
+                disabled={!available || isSyncing || connection.status === 'syncing'}
               >
                 <RefreshCw
                   className={`mr-1 h-4 w-4 ${isSyncing || connection.status === 'syncing' ? 'animate-spin' : ''}`}
@@ -198,8 +184,8 @@ export function ExchangeCard({
               </Button>
             </>
           ) : (
-            <Button size="sm" onClick={onConnect}>
-              연결하기
+            <Button size="sm" onClick={onConnect} disabled={!available}>
+              {connection ? '다시 연결' : '연결하기'}
             </Button>
           )}
         </div>

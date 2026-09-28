@@ -1,10 +1,9 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiClient } from '@/lib/api';
-import { mockConnections } from '@/lib/mockData';
+import { apiClient, apiClientNoAuth } from '@/lib/api';
+import { parseExchangeCapabilities } from '@/lib/exchangeCapabilities';
 import type {
-  Connection,
   ConnectionListResponse,
   CreateConnectionRequest,
   CreateConnectionResponse,
@@ -15,8 +14,6 @@ import type {
   ServerPublicKeyResponse,
 } from '@/types';
 
-// TEMPORARY: Enable mock data for UI testing without backend
-const USE_MOCK_DATA = true;
 
 const CONNECTIONS_KEY = ['connections'] as const;
 const PUBLIC_KEY_KEY = ['server-public-key'] as const;
@@ -28,7 +25,7 @@ export function useServerPublicKey() {
   return useQuery({
     queryKey: PUBLIC_KEY_KEY,
     queryFn: () =>
-      apiClient<ServerPublicKeyResponse>('/api/v1/connections/public-key'),
+      apiClientNoAuth<ServerPublicKeyResponse>('/api/v1/connections/public-key'),
     staleTime: 30 * 60 * 1000, // 30 minutes
     gcTime: 60 * 60 * 1000, // 1 hour
   });
@@ -37,21 +34,20 @@ export function useServerPublicKey() {
 /**
  * Fetch all connections for the current user
  */
-export function useConnections() {
-  return useQuery({
-    queryKey: CONNECTIONS_KEY,
-    queryFn: async () => {
-      if (USE_MOCK_DATA) {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        return mockConnections;
-      }
-      const response = await apiClient<ConnectionListResponse>(
-        '/api/v1/connections'
-      );
-      return response.connections;
-    },
-    staleTime: 1 * 60 * 1000, // 1 minute
-  });
+function connectionListOptions(includeDisconnected: boolean) {
+  return {
+    queryKey: includeDisconnected ? [...CONNECTIONS_KEY, 'retained'] : CONNECTIONS_KEY,
+    queryFn: () => apiClient<ConnectionListResponse>(includeDisconnected ? '/api/v1/connections?include_disconnected=true' : '/api/v1/connections'),
+    staleTime: 60_000,
+  };
+}
+
+export function useConnectionList(includeDisconnected = false) {
+  return useQuery(connectionListOptions(includeDisconnected));
+}
+
+export function useConnections(includeDisconnected = false) {
+  return useQuery({ ...connectionListOptions(includeDisconnected), select: response => response.connections });
 }
 
 /**
@@ -60,8 +56,12 @@ export function useConnections() {
 export function useConnection(connectionId: string) {
   return useQuery({
     queryKey: [...CONNECTIONS_KEY, connectionId],
-    queryFn: () =>
-      apiClient<Connection>(`/api/v1/connections/${connectionId}`),
+    queryFn: async () => {
+      const result = await apiClient<ConnectionListResponse>('/api/v1/connections');
+      const connection = result.connections.find(item => item.id === connectionId);
+      if (!connection) throw new Error('연결 정보를 찾을 수 없습니다');
+      return connection;
+    },
     enabled: !!connectionId,
     staleTime: 30 * 1000, // 30 seconds
   });
@@ -147,4 +147,16 @@ export function useRefreshConnections() {
   return () => {
     queryClient.invalidateQueries({ queryKey: CONNECTIONS_KEY });
   };
+}
+
+/** Configured server support is independent from an owner's retained history. */
+export function useExchangeCapabilities() {
+  return useQuery({
+    queryKey: ['exchange-capabilities'],
+    queryFn: async () => parseExchangeCapabilities(await apiClient<unknown>('/api/v1/connections/capabilities')),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    retry: false,
+  });
 }

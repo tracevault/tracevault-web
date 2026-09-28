@@ -1,13 +1,8 @@
+import type { components } from './generated/http';
+
 // Ledger Types - Entry Accounts and Events
 
-export type EventType =
-  | 'TRANSFER'
-  | 'SWAP'
-  | 'BUY'
-  | 'SELL'
-  | 'REWARD'
-  | 'AIRDROP'
-  | 'CORRECTION';
+export type EventType = components['schemas']['LedgerEventType'];
 
 export type EntryAccountType =
   | 'ONCHAIN_ADDRESS'
@@ -15,25 +10,11 @@ export type EntryAccountType =
   | 'BANK_ACCOUNT'
   | 'ONRAMP_ACCOUNT';
 
-export interface Amount {
-  value: string;
-  scale: number;
-}
+export type Amount = components['schemas']['LedgerAmount'];
 
-export interface AssetId {
-  symbol: string;
-  chain_id?: string;
-  contract?: string;
-}
+export type AssetId = components['schemas']['LedgerAssetId'];
 
-export interface ValueSnapshot {
-  price_usd: Amount;
-  price_local: Amount;
-  local_currency: string;
-  exchange_rate: Amount;
-  price_source: string;
-  price_timestamp: string;
-}
+export type ValueSnapshot = components['schemas']['LedgerValueSnapshot'];
 
 export interface EntryAccount {
   id: string;
@@ -47,24 +28,7 @@ export interface EntryAccount {
   updated_at: string;
 }
 
-export interface LedgerEvent {
-  id: string;
-  user_id: string;
-  event_type: EventType;
-  asset_id: AssetId;
-  amount: Amount;
-  from_account_id?: string;
-  to_account_id?: string;
-  counter_asset_id?: AssetId;
-  counter_amount?: Amount;
-  value_snapshot: ValueSnapshot;
-  event_time: string;
-  source: string;
-  source_tx_id?: string;
-  correction_of?: string;
-  created_at: string;
-  created_by: string;
-}
+export type LedgerEvent = components['schemas']['LedgerEvent'];
 
 export interface Balance {
   asset_id: AssetId;
@@ -81,25 +45,9 @@ export interface CreateEntryAccountRequest {
   exchange_id?: string;
 }
 
-export interface CreateLedgerEventRequest {
-  event_type: EventType;
-  asset_id: AssetId;
-  amount: Amount;
-  from_account_id?: string;
-  to_account_id?: string;
-  counter_asset_id?: AssetId;
-  counter_amount?: Amount;
-  value_snapshot: ValueSnapshot;
-  event_time: string;
-  source: string;
-  source_tx_id?: string;
-  correction_of?: string;
-}
+export type CreateLedgerEventRequest = components['schemas']['CreateLedgerEventRequest'];
 
-export interface ReclassifyEventRequest {
-  new_event_type: EventType;
-  reason?: string;
-}
+export type ReclassifyEventRequest = components['schemas']['ReclassifyEventRequest'];
 
 export interface EntryAccountListResponse {
   accounts: EntryAccount[];
@@ -126,6 +74,7 @@ export interface BalanceListResponse {
 }
 
 export interface EventsQueryParams {
+  effective_classification?: boolean;
   asset_symbol?: string;
   event_type?: EventType;
   from_date?: string;
@@ -134,28 +83,7 @@ export interface EventsQueryParams {
   offset?: number;
 }
 
-export interface AssetFlowNode {
-  id: string;
-  event_id: string;
-  asset_id: AssetId;
-  amount: Amount;
-  event_type: EventType;
-  event_time: string;
-}
-
-export interface AssetFlowEdge {
-  from: string;
-  to: string;
-  amount: Amount;
-}
-
-export interface AssetFlowResponse {
-  nodes: AssetFlowNode[];
-  edges: AssetFlowEdge[];
-}
-
-export interface EventTraceResponse {
-  path: LedgerEvent[];
-  edges: AssetFlowEdge[];
-  origin_event_id: string;
-}
+export type AssetFlowNode = components['schemas']['AssetFlowNode'];
+export type AssetFlowEdge = components['schemas']['AssetFlowEdge'];
+export type AssetFlowResponse = components['schemas']['AssetFlowResponse'];
+export type EventTraceResponse = components['schemas']['EventTraceResponse'];

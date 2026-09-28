@@ -4,3 +4,5 @@ export * from './ConnectExchangeModal';
 export * from './ApiKeyForm';
 export * from './SyncProgress';
 export * from './ConnectionStatus';
+export * from './ConnectWalletModal';
+export * from './WalletCard';

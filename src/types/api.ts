@@ -1,16 +1,10 @@
-export interface ApiError {
-  code: string;
-  message: string;
-  details?: Record<string, unknown>;
-}
+import type { components } from './generated/http';
+export type ApiError = components['schemas']['ApiError'];
 
 export interface ApiResponse<T> {
+  success: true;
   data: T;
-  meta?: {
-    page?: number;
-    limit?: number;
-    total?: number;
-  };
+  meta: components['schemas']['Meta'];
 }
 
 export class AuthError extends Error {
@@ -22,9 +16,9 @@ export class AuthError extends Error {
 
 export class ApiRequestError extends Error {
   code: string;
-  details?: Record<string, unknown>;
+  details?: ApiError['details'];
 
-  constructor(code: string, message: string, details?: Record<string, unknown>) {
+  constructor(code: string, message: string, details?: ApiError['details']) {
     super(message);
     this.name = 'ApiRequestError';
     this.code = code;

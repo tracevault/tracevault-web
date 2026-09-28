@@ -1,49 +1,39 @@
 // Tax Types - Calculations and Reporting
 
 import type { Amount, AssetId } from './ledger';
+import type { components } from './generated/http';
 
-export type Jurisdiction = 'KOREA' | 'JAPAN';
-export type CostBasisMethod = 'FIFO' | 'LIFO' | 'MOVING_AVERAGE';
+export type Jurisdiction = components['schemas']['TaxJurisdiction'];
+export type CostBasisMethod = components['schemas']['TaxCostBasisMethod'];
 export type ReportFormat = 'PDF' | 'CSV' | 'JSON';
 
-export interface TaxProfile {
-  id: string;
-  user_id: string;
-  jurisdiction: Jurisdiction;
-  tax_year: number;
-  cost_basis_method: CostBasisMethod;
-  local_currency: string;
-}
+export type TaxProfile = components['schemas']['TaxProfile'];
+export type AccountingPolicy = components['schemas']['AccountingPolicy'];
+export type LegalTaxPolicy = components['schemas']['LegalTaxPolicy'];
+export type LegalTaxPolicyCatalog = components['schemas']['LegalTaxPolicyCatalog'];
+export type TaxpayerInputPayload = components['schemas']['TaxpayerInputPayload'];
+export type TaxpayerInputSnapshot = components['schemas']['TaxpayerInputSnapshot'];
+export type CreateTaxpayerInputSnapshotRequest = components['schemas']['CreateTaxpayerInputSnapshotRequest'];
+export type PreviewLegalTaxRequest = components['schemas']['PreviewLegalTaxRequest'];
+export type LegalTaxCalculation = components['schemas']['LegalTaxCalculation'];
+export type CreateLegalTaxRunRequest = components['schemas']['CreateLegalTaxRunRequest'];
+export type LegalTaxRun = components['schemas']['LegalTaxRun'];
+export type LegalTaxRunList = components['schemas']['LegalTaxRunList'];
+export type LegalTaxReport = components['schemas']['LegalTaxReport'];
+export type LegalTaxReportList = components['schemas']['LegalTaxReportList'];
+export type CreateLegalTaxReportRequest = components['schemas']['CreateLegalTaxReportRequest'];
+export const ACCOUNTING_POLICY_V2: components['schemas']['AccountingPolicySelection'] = {
+  version: 2,
+  reward_treatment: 'FAIR_VALUE_BASIS_AND_INCOME',
+  airdrop_treatment: 'FAIR_VALUE_BASIS_AND_INCOME',
+  transfer_fee_treatment: 'FAIR_VALUE_DISPOSAL_AND_FIAT_EXPENSE',
+};
 
-export interface TaxSummary {
-  total_proceeds: Amount;
-  total_cost_basis: Amount;
-  realized_gain: Amount;
-  realized_loss: Amount;
-  net_gain: Amount;
-  taxable_income: Amount;
-  deduction: Amount;
-  tax_amount: Amount;
-  tax_rate: number;
-  currency: string;
-}
+export type TaxSummary = components['schemas']['TaxSummary'];
 
-export interface TaxEvent {
-  event_id: string;
-  event_type: string;
-  asset_id: AssetId;
-  quantity: Amount;
-  proceeds: Amount;
-  cost_basis: Amount;
-  gain_loss: Amount;
-  is_gain: boolean;
-  event_time: string;
-}
+export type TaxEvent = components['schemas']['TaxEvent'];
 
-export interface TaxCalculationResponse {
-  summary: TaxSummary;
-  events: TaxEvent[];
-}
+export type TaxCalculationResponse = components['schemas']['TaxCalculationResponse'];
 
 export interface TaxLot {
   id: string;
@@ -89,21 +79,11 @@ export interface TaxReportListResponse {
 }
 
 // Request types
-export interface CreateTaxProfileRequest {
-  jurisdiction: Jurisdiction;
-  tax_year: number;
-  cost_basis_method: CostBasisMethod;
-}
+export type CreateTaxProfileRequest = components['schemas']['CreateTaxProfileRequest'];
 
-export interface UpdateTaxProfileRequest {
-  cost_basis_method: CostBasisMethod;
-}
+export type UpdateTaxProfileRequest = components['schemas']['UpdateTaxProfileRequest'];
 
-export interface TaxCalculateRequest {
-  jurisdiction: Jurisdiction;
-  tax_year: number;
-  cost_basis_method: CostBasisMethod;
-}
+export type TaxCalculateRequest = components['schemas']['CalculateTaxRequest'];
 
 export interface GenerateTaxReportRequest {
   tax_year: number;
@@ -119,3 +99,15 @@ export interface TaxLotsQueryParams {
   limit?: number;
   offset?: number;
 }
+
+export type AccountingRun = components['schemas']['AccountingRun'];
+export type AccountingRunResult = components['schemas']['AccountingRunResult'];
+export type AccountingRunList = components['schemas']['AccountingRunList'];
+export type AccountingRunEntries = components['schemas']['AccountingRunEntries'];
+export type AccountingRunEntryKind = components['schemas']['AccountingRunEntryKind'];
+export type CreateAccountingRunRequest = components['schemas']['CreateAccountingRunRequest'];
+
+export type AccountingReport = components['schemas']['AccountingReport'];
+export type AccountingReportList = components['schemas']['AccountingReportList'];
+export type AccountingReportFormat = components['schemas']['AccountingReportFormat'];
+export type CreateAccountingReportRequest = components['schemas']['CreateAccountingReportRequest'];

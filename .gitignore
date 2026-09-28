@@ -45,3 +45,8 @@ next-env.d.ts
 
 # Serena MCP project config
 .serena/
+
+# Isolated browser acceptance builds
+/.next-*/
+/output/playwright/
+/.playwright-cli/

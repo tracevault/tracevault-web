@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
-import { mockTaxSummary, mockTaxLots, mockTaxReports } from '@/lib/mockData';
+import { ACCOUNTING_RUNS_KEY } from './useAccountingRuns';
 import type {
   TaxProfile,
   TaxCalculationResponse,
@@ -15,15 +15,115 @@ import type {
   TaxCalculateRequest,
   GenerateTaxReportRequest,
   TaxLotsQueryParams,
+  Jurisdiction,
+  LegalTaxPolicyCatalog,
+  TaxpayerInputSnapshot,
+  CreateTaxpayerInputSnapshotRequest,
+  PreviewLegalTaxRequest,
+  LegalTaxCalculation,
+  CreateLegalTaxRunRequest,
+  LegalTaxRun,
+  LegalTaxRunList,
 } from '@/types';
-
-// TEMPORARY: Enable mock data for UI testing without backend
-const USE_MOCK_DATA = true;
 
 const PROFILES_KEY = ['tax-profiles'] as const;
 const SUMMARY_KEY = ['tax-summary'] as const;
 const LOTS_KEY = ['tax-lots'] as const;
 const REPORTS_KEY = ['tax-reports'] as const;
+const LEGAL_POLICIES_KEY = ['legal-tax-policies'] as const;
+export const TAXPAYER_INPUTS_KEY = ['taxpayer-input-snapshots'] as const;
+export const LEGAL_TAX_RUNS_KEY = ['legal-tax-runs'] as const;
+
+export function useLegalTaxPolicyCatalog(jurisdiction: Jurisdiction, taxYear: number) {
+  const query = new URLSearchParams({ jurisdiction, tax_year: String(taxYear) });
+  return useQuery({
+    queryKey: [...LEGAL_POLICIES_KEY, jurisdiction, taxYear],
+    queryFn: () => apiClient<LegalTaxPolicyCatalog>(`/api/v1/tax/legal-policies?${query}`),
+    enabled: !!jurisdiction && !!taxYear,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useLatestTaxpayerInputSnapshot(jurisdiction: Jurisdiction, taxYear: number) {
+  const query = new URLSearchParams({ jurisdiction, tax_year: String(taxYear) });
+  return useQuery({
+    queryKey: [...TAXPAYER_INPUTS_KEY, 'latest', jurisdiction, taxYear],
+    queryFn: () => apiClient<TaxpayerInputSnapshot>(`/api/v1/tax/taxpayer-input-snapshots/latest?${query}`),
+    enabled: !!jurisdiction && !!taxYear,
+    retry: false,
+  });
+}
+
+export function useTaxpayerInputSnapshot(snapshotId: string) {
+  return useQuery({
+    queryKey: [...TAXPAYER_INPUTS_KEY, snapshotId],
+    queryFn: () => apiClient<TaxpayerInputSnapshot>(`/api/v1/tax/taxpayer-input-snapshots/${encodeURIComponent(snapshotId)}`),
+    enabled: !!snapshotId,
+    retry: false,
+  });
+}
+
+export function useCreateTaxpayerInputSnapshot() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateTaxpayerInputSnapshotRequest) =>
+      apiClient<TaxpayerInputSnapshot>('/api/v1/tax/taxpayer-input-snapshots', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (snapshot) => {
+      queryClient.setQueryData([...TAXPAYER_INPUTS_KEY, 'latest', snapshot.jurisdiction, snapshot.tax_year], snapshot);
+      queryClient.setQueryData([...TAXPAYER_INPUTS_KEY, snapshot.id], snapshot);
+    },
+  });
+}
+
+export function usePreviewLegalTax() {
+  return useMutation({
+    mutationFn: (data: PreviewLegalTaxRequest) =>
+      apiClient<LegalTaxCalculation>('/api/v1/tax/legal-tax-previews', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+  });
+}
+
+export function useCreateLegalTaxRun() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateLegalTaxRunRequest) =>
+      apiClient<LegalTaxRun>('/api/v1/tax/legal-tax-runs', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    onSuccess: (run) => {
+      queryClient.setQueryData([...LEGAL_TAX_RUNS_KEY, run.id, false], run);
+      queryClient.invalidateQueries({ queryKey: [...LEGAL_TAX_RUNS_KEY, run.calculation.accounting_run_id] });
+    },
+  });
+}
+
+export function useLegalTaxRuns(accountingRunId: string) {
+  const query = new URLSearchParams({ accounting_run_id: accountingRunId, limit: '20' });
+  return useQuery({
+    queryKey: [...LEGAL_TAX_RUNS_KEY, accountingRunId],
+    queryFn: () => apiClient<LegalTaxRunList>(`/api/v1/tax/legal-tax-runs?${query}`),
+    enabled: !!accountingRunId,
+    retry: false,
+  });
+}
+
+export function useCheckLegalTaxRun() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient<LegalTaxRun>(`/api/v1/tax/legal-tax-runs/${encodeURIComponent(id)}?check_current=true`),
+    onSuccess: (run) => {
+      queryClient.setQueryData([...LEGAL_TAX_RUNS_KEY, run.id, true], run);
+      queryClient.invalidateQueries({ queryKey: [...LEGAL_TAX_RUNS_KEY, run.calculation.accounting_run_id] });
+    },
+  });
+}
 
 // ============================================
 // Tax Profile Hooks
@@ -38,6 +138,7 @@ export function useTaxProfile(taxYear: number) {
     queryFn: () =>
       apiClient<TaxProfile>(`/api/v1/tax/profiles?tax_year=${taxYear}`),
     enabled: !!taxYear,
+    retry: false, // A missing profile opens setup; other failures have an explicit retry.
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }
@@ -74,7 +175,10 @@ export function useUpdateTaxProfile() {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PROFILES_KEY });
+      queryClient.invalidateQueries({ queryKey: ACCOUNTING_RUNS_KEY });
       queryClient.invalidateQueries({ queryKey: SUMMARY_KEY });
+      queryClient.invalidateQueries({ queryKey: LOTS_KEY });
+      queryClient.invalidateQueries({ queryKey: REPORTS_KEY });
     },
   });
 }
@@ -84,7 +188,7 @@ export function useUpdateTaxProfile() {
 // ============================================
 
 /**
- * Calculate taxes for a specific year
+ * @deprecated The legal-tax endpoint is fail-closed. Use immutable accounting runs.
  */
 export function useCalculateTax() {
   const queryClient = useQueryClient();
@@ -103,16 +207,12 @@ export function useCalculateTax() {
 }
 
 /**
- * Fetch tax summary for a specific year
+ * @deprecated The legacy summary endpoint is fail-closed. Read an immutable accounting run.
  */
 export function useTaxSummary(taxYear: number) {
   return useQuery({
     queryKey: [...SUMMARY_KEY, taxYear],
     queryFn: async () => {
-      if (USE_MOCK_DATA) {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        return mockTaxSummary;
-      }
       return apiClient<TaxSummary>(`/api/v1/tax/summary?tax_year=${taxYear}`);
     },
     enabled: !!taxYear,
@@ -125,7 +225,7 @@ export function useTaxSummary(taxYear: number) {
 // ============================================
 
 /**
- * Fetch tax lots with optional filters
+ * @deprecated The legacy lot endpoint is fail-closed. Read immutable accounting run entries.
  */
 export function useTaxLots(params: TaxLotsQueryParams = {}) {
   const queryParams = new URLSearchParams();
@@ -142,25 +242,6 @@ export function useTaxLots(params: TaxLotsQueryParams = {}) {
   return useQuery({
     queryKey: [...LOTS_KEY, params],
     queryFn: async () => {
-      if (USE_MOCK_DATA) {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        let filteredLots = [...mockTaxLots.lots];
-        if (params.asset_symbol) {
-          filteredLots = filteredLots.filter(
-            (lot) => lot.asset_id.symbol === params.asset_symbol
-          );
-        }
-        if (params.include_consumed === false) {
-          filteredLots = filteredLots.filter((lot) => !lot.is_consumed);
-        }
-        return {
-          lots: filteredLots,
-          pagination: {
-            ...mockTaxLots.pagination,
-            total: filteredLots.length,
-          },
-        };
-      }
       const url = `/api/v1/tax/lots${queryString ? `?${queryString}` : ''}`;
       const response = await apiClient<TaxLotListResponse>(url);
       return response;
@@ -174,7 +255,7 @@ export function useTaxLots(params: TaxLotsQueryParams = {}) {
 // ============================================
 
 /**
- * Generate a new tax report
+ * @deprecated The legal-report endpoint is fail-closed. Generate a retained accounting report.
  */
 export function useGenerateTaxReport() {
   const queryClient = useQueryClient();
@@ -192,7 +273,7 @@ export function useGenerateTaxReport() {
 }
 
 /**
- * Fetch list of generated tax reports
+ * @deprecated The legacy report endpoint is fail-closed. List retained accounting reports.
  */
 export function useTaxReports(taxYear?: number) {
   const queryParams = taxYear ? `?tax_year=${taxYear}` : '';
@@ -200,13 +281,6 @@ export function useTaxReports(taxYear?: number) {
   return useQuery({
     queryKey: [...REPORTS_KEY, taxYear],
     queryFn: async () => {
-      if (USE_MOCK_DATA) {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        if (taxYear) {
-          return mockTaxReports.filter((r) => r.tax_year === taxYear);
-        }
-        return mockTaxReports;
-      }
       const response = await apiClient<TaxReportListResponse>(
         `/api/v1/tax/reports${queryParams}`
       );

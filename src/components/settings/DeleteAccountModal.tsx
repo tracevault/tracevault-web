@@ -18,14 +18,12 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDeleteAccount } from '@/hooks';
-import { useAuthStore } from '@/stores';
 import { ApiRequestError } from '@/types';
 
 export function DeleteAccountModal() {
   const [open, setOpen] = useState(false);
   const [confirmText, setConfirmText] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const user = useAuthStore((state) => state.user);
   const deleteAccount = useDeleteAccount();
 
   const handleDelete = async () => {

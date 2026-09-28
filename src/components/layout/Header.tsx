@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Menu, X, LogOut, User, LayoutDashboard, Settings,
-  BookOpen, PieChart, FileText, Link2
+  BookOpen, PieChart, FileText, Link2, Bell
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -19,6 +19,8 @@ const navItems = [
   { href: '/ledger', label: 'Ledger', icon: BookOpen },
   { href: '/portfolio', label: 'Portfolio', icon: PieChart },
   { href: '/tax', label: 'Tax', icon: FileText },
+  { href: '/proofs', label: '증명', icon: FileText },
+  { href: '/notifications', label: '알림', icon: Bell },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -38,7 +40,7 @@ export function Header() {
       className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
       role="banner"
     >
-      <div className="container flex h-16 items-center justify-between">
+      <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <div className="flex items-center gap-6">
           <Link
             href="/"
@@ -49,13 +51,13 @@ export function Header() {
           </Link>
 
           {isAuthenticated && (
-            <nav className="hidden md:flex md:gap-6" aria-label="메인 네비게이션">
+            <nav className="hidden xl:flex xl:gap-3" aria-label="메인 네비게이션">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    'flex items-center gap-2 text-sm font-medium transition-colors hover:text-primary rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2',
+                    'flex items-center gap-2 whitespace-nowrap text-sm font-medium transition-colors hover:text-primary rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2',
                     pathname === item.href
                       ? 'text-primary'
                       : 'text-muted-foreground'
@@ -73,8 +75,8 @@ export function Header() {
         <div className="flex items-center gap-4">
           {isAuthenticated ? (
             <>
-              <div className="hidden items-center gap-4 md:flex">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="hidden items-center gap-4 xl:flex">
+                <div className="flex items-center gap-2 whitespace-nowrap text-sm text-muted-foreground">
                   <User className="h-4 w-4" />
                   <span>{user?.name}</span>
                 </div>
@@ -92,7 +94,7 @@ export function Header() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="md:hidden"
+                className="shrink-0 xl:hidden"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-label={mobileMenuOpen ? '메뉴 닫기' : '메뉴 열기'}
                 aria-expanded={mobileMenuOpen}
@@ -120,7 +122,7 @@ export function Header() {
 
       {/* Mobile menu */}
       {isAuthenticated && mobileMenuOpen && (
-        <div id="mobile-menu" className="border-t md:hidden" role="dialog" aria-label="모바일 메뉴">
+        <div id="mobile-menu" className="border-t xl:hidden" role="dialog" aria-label="모바일 메뉴">
           <nav className="container flex flex-col gap-2 py-4" aria-label="모바일 네비게이션">
             {navItems.map((item) => (
               <Link

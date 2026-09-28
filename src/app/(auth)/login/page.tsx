@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { Metadata } from 'next';
 import {
   Card,
@@ -24,6 +25,7 @@ export default function LoginPage() {
       </CardHeader>
       <CardContent>
         <LoginForm />
+        <p className="mt-4 text-center text-sm"><Link href="/forgot-password" className="underline">비밀번호를 잊으셨나요?</Link></p>
       </CardContent>
     </Card>
   );

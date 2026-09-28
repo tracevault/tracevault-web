@@ -1,19 +1,14 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { encryptApiKeys, isCryptoAvailable } from '@/lib/crypto';
+import { encryptApiKeys, isCryptoAvailable, CREDENTIAL_ALGORITHM, type EncryptionResult } from '@/lib/crypto';
 import { useServerPublicKey } from './useConnections';
 
 interface UseCryptoResult {
   encrypt: (
     apiKey: string,
     secretKey: string
-  ) => Promise<{
-    encryptedApiKey: string;
-    encryptedSecretKey: string;
-    iv: string;
-    ephemeralPublicKey: string;
-  }>;
+  ) => Promise<EncryptionResult>;
   isReady: boolean;
   isLoading: boolean;
   error: string | null;
@@ -38,7 +33,7 @@ export function useCrypto(): UseCryptoResult {
         throw new Error('Web Crypto API is not available in this browser');
       }
 
-      if (!publicKeyData?.public_key) {
+      if (!publicKeyData?.public_key || !publicKeyData.key_id || publicKeyData.algorithm !== CREDENTIAL_ALGORITHM) {
         throw new Error('Server public key not available');
       }
 
@@ -46,7 +41,8 @@ export function useCrypto(): UseCryptoResult {
         const result = await encryptApiKeys(
           apiKey,
           secretKey,
-          publicKeyData.public_key
+          publicKeyData.public_key,
+          publicKeyData.key_id
         );
         return result;
       } catch (err) {
@@ -56,12 +52,12 @@ export function useCrypto(): UseCryptoResult {
         throw err;
       }
     },
-    [publicKeyData?.public_key, isCryptoSupported]
+    [publicKeyData, isCryptoSupported]
   );
 
   return {
     encrypt,
-    isReady: !isLoading && !!publicKeyData?.public_key && isCryptoSupported,
+    isReady: !isLoading && !!publicKeyData?.public_key && publicKeyData.algorithm === CREDENTIAL_ALGORITHM && isCryptoSupported,
     isLoading,
     error: error || (publicKeyError ? 'Failed to fetch encryption key' : null),
     isCryptoSupported,

@@ -23,20 +23,24 @@ import type { ExchangeType } from '@/types';
 
 // Form validation schema
 const apiKeyFormSchema = z.object({
+  label: z.string().refine(value => [...value].length <= 80 && !/[\u0000-\u001f\u007f-\u009f]/u.test(value), '계정 이름은 제어 문자 없이 80자까지 입력하세요'),
   apiKey: z
     .string()
     .min(10, 'API Key는 최소 10자 이상이어야 합니다')
-    .max(256, 'API Key가 너무 깁니다'),
+    .max(512, 'API Key가 너무 깁니다'),
   secretKey: z
     .string()
     .min(10, 'Secret Key는 최소 10자 이상이어야 합니다')
-    .max(256, 'Secret Key가 너무 깁니다'),
+    .max(2048, 'Secret Key가 너무 깁니다'),
 });
 
 type ApiKeyFormData = z.infer<typeof apiKeyFormSchema>;
 
 interface ApiKeyFormProps {
   exchange: ExchangeType;
+  initialLabel?: string;
+  reconnecting?: boolean;
+  replacing?: boolean;
   onSubmit: (data: ApiKeyFormData) => Promise<void>;
   onTest?: (data: ApiKeyFormData) => Promise<{ success: boolean; message: string }>;
   isSubmitting?: boolean;
@@ -47,6 +51,9 @@ interface ApiKeyFormProps {
 
 export function ApiKeyForm({
   exchange,
+  initialLabel = '',
+  reconnecting = false,
+  replacing = false,
   onSubmit,
   onTest,
   isSubmitting = false,
@@ -62,10 +69,12 @@ export function ApiKeyForm({
   } | null>(null);
 
   const exchangeInfo = getExchangeInfo(exchange);
+  const credentialFields = exchangeInfo.credentialFields;
 
   const form = useForm<ApiKeyFormData>({
     resolver: zodResolver(apiKeyFormSchema),
     defaultValues: {
+      label: initialLabel,
       apiKey: '',
       secretKey: '',
     },
@@ -105,18 +114,31 @@ export function ApiKeyForm({
           </AlertDescription>
         </Alert>
 
+        {!replacing && <FormField
+          control={form.control}
+          name="label"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>계정 이름 (선택)</FormLabel>
+              <FormControl><Input placeholder="예: 장기 보관 계정" {...field} /></FormControl>
+              <FormDescription>계정을 구분하기 위한 이름입니다.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />}
+
         {/* API Key */}
         <FormField
           control={form.control}
           name="apiKey"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>API Key</FormLabel>
+              <FormLabel>{credentialFields?.apiKeyLabel ?? 'API Key'}</FormLabel>
               <FormControl>
                 <div className="relative">
                   <Input
                     type={showApiKey ? 'text' : 'password'}
-                    placeholder={`${exchangeInfo.name} API Key를 입력하세요`}
+                    placeholder={credentialFields?.apiKeyPlaceholder ?? `${exchangeInfo.name} API Key를 입력하세요`}
                     autoComplete="off"
                     {...field}
                   />
@@ -137,7 +159,7 @@ export function ApiKeyForm({
                 </div>
               </FormControl>
               <FormDescription>
-                거래소에서 발급받은 API Key를 입력하세요.
+                {credentialFields?.apiKeyDescription ?? '거래소에서 발급받은 API Key를 입력하세요.'}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -150,15 +172,26 @@ export function ApiKeyForm({
           name="secretKey"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Secret Key</FormLabel>
+              <FormLabel>{credentialFields?.secretKeyLabel ?? 'Secret Key'}</FormLabel>
               <FormControl>
                 <div className="relative">
-                  <Input
-                    type={showSecretKey ? 'text' : 'password'}
-                    placeholder={`${exchangeInfo.name} Secret Key를 입력하세요`}
-                    autoComplete="off"
-                    {...field}
-                  />
+                  {credentialFields?.secretMultiline ? (
+                    <textarea
+                      rows={7}
+                      placeholder={credentialFields.secretKeyPlaceholder}
+                      autoComplete="off"
+                      spellCheck={false}
+                      className={`border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 aria-invalid:border-destructive dark:bg-input/30 min-h-32 w-full resize-y rounded-md border bg-transparent px-3 py-2 pr-10 font-mono text-sm shadow-xs outline-none focus-visible:ring-[3px] ${showSecretKey ? '' : 'text-transparent caret-foreground selection:text-transparent'}`}
+                      {...field}
+                    />
+                  ) : (
+                    <Input
+                      type={showSecretKey ? 'text' : 'password'}
+                      placeholder={credentialFields?.secretKeyPlaceholder ?? `${exchangeInfo.name} Secret Key를 입력하세요`}
+                      autoComplete="off"
+                      {...field}
+                    />
+                  )}
                   <Button
                     type="button"
                     variant="ghost"
@@ -176,7 +209,7 @@ export function ApiKeyForm({
                 </div>
               </FormControl>
               <FormDescription>
-                API Key와 함께 발급받은 Secret Key를 입력하세요.
+                {credentialFields?.secretKeyDescription ?? 'API Key와 함께 발급받은 Secret Key를 입력하세요.'}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -215,7 +248,7 @@ export function ApiKeyForm({
             disabled={isSubmitting || isTesting || !isCryptoReady}
           >
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            연결하기
+            {replacing ? 'API 키 교체' : reconnecting ? '다시 연결' : '연결하기'}
           </Button>
         </div>
       </form>

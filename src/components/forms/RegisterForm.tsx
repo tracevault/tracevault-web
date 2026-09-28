@@ -114,7 +114,7 @@ export function RegisterForm() {
               <FormControl>
                 <Input
                   type="password"
-                  placeholder="8자 이상, 대/소문자, 숫자 포함"
+                  placeholder="8자 이상, 대/소문자, 숫자, 특수문자 포함"
                   autoComplete="new-password"
                   {...field}
                 />
