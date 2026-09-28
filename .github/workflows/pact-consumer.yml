@@ -6,10 +6,17 @@ on:
       - 'tests/pact/**'
       - 'src/lib/api/**'
       - 'src/hooks/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/pact-consumer.yml'
 
 jobs:
   pact-consumer:
     runs-on: ubuntu-latest
+    env:
+      PACT_BROKER_BASE_URL: ${{ secrets.PACT_BROKER_URL }}
+      PACT_BROKER_USERNAME: ${{ secrets.PACT_BROKER_USERNAME }}
+      PACT_BROKER_PASSWORD: ${{ secrets.PACT_BROKER_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -24,11 +31,9 @@ jobs:
         run: npm run test:pact
 
       - name: Publish Pacts to Broker
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && env.PACT_BROKER_BASE_URL != ''
         run: |
-          npx pact-broker publish pacts/ \
-            --consumer-app-version=${{ github.sha }} \
-            --broker-base-url=${{ secrets.PACT_BROKER_URL }} \
-            --broker-username=${{ secrets.PACT_BROKER_USERNAME }} \
-            --broker-password=${{ secrets.PACT_BROKER_PASSWORD }} \
-            --tag=${{ github.head_ref }}
+          ./node_modules/.bin/pact-broker publish pacts/ \
+            --consumer-app-version="$GITHUB_SHA" \
+            --broker-base-url="$PACT_BROKER_BASE_URL" \
+            --branch="$GITHUB_HEAD_REF"

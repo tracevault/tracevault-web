@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@pact-foundation/pact": "^13.2.0",
+    "@pact-foundation/pact-cli": "18.1.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

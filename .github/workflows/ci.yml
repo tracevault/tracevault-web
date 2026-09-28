@@ -11,32 +11,87 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: tracevault-web
+
+      - name: Resolve canonical contract revision
+        id: contracts
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          test -n "$GH_TOKEN" || { echo '::error::CROSS_REPO_TOKEN is required for private canonical contracts'; exit 1; }
+          gh api repos/tracevault/tracevault-contracts --jq .default_branch >/dev/null
+          if gh api "repos/tracevault/tracevault-contracts/git/ref/heads/$CANDIDATE_REF" --jq .ref >/dev/null 2>&1; then
+            echo "ref=$CANDIDATE_REF" >> "$GITHUB_OUTPUT"
+          else
+            echo 'ref=main' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout canonical contracts
+        uses: actions/checkout@v4
+        with:
+          repository: tracevault/tracevault-contracts
+          ref: ${{ steps.contracts.outputs.ref }}
+          path: tracevault-contracts
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
+          cache-dependency-path: tracevault-web/package-lock.json
 
       - run: npm ci
+        working-directory: tracevault-web
 
       - name: Lint
         run: npm run lint
+        working-directory: tracevault-web
 
       - name: Type check
         run: npx tsc --noEmit
+        working-directory: tracevault-web
 
   build:
     runs-on: ubuntu-latest
     needs: [lint-and-typecheck]
     steps:
       - uses: actions/checkout@v4
+        with:
+          path: tracevault-web
+
+      - name: Resolve canonical contract revision
+        id: contracts
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
+          CANDIDATE_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          test -n "$GH_TOKEN" || { echo '::error::CROSS_REPO_TOKEN is required for private canonical contracts'; exit 1; }
+          gh api repos/tracevault/tracevault-contracts --jq .default_branch >/dev/null
+          if gh api "repos/tracevault/tracevault-contracts/git/ref/heads/$CANDIDATE_REF" --jq .ref >/dev/null 2>&1; then
+            echo "ref=$CANDIDATE_REF" >> "$GITHUB_OUTPUT"
+          else
+            echo 'ref=main' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout canonical contracts
+        uses: actions/checkout@v4
+        with:
+          repository: tracevault/tracevault-contracts
+          ref: ${{ steps.contracts.outputs.ref }}
+          path: tracevault-contracts
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
+          cache-dependency-path: tracevault-web/package-lock.json
 
       - run: npm ci
+        working-directory: tracevault-web
 
       - name: Build
         run: npm run build
+        working-directory: tracevault-web
