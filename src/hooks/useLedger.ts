@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
-import { mockLedgerEvents } from '@/lib/mockData';
+import { getAssetFlow, getEventTrace, type FlowQuery, type TraceQuery } from '@/lib/api/ledger-flow';
 import type {
   EntryAccount,
   EntryAccountListResponse,
@@ -13,12 +13,7 @@ import type {
   ReclassifyEventRequest,
   BalanceListResponse,
   EventsQueryParams,
-  AssetFlowResponse,
-  EventTraceResponse,
 } from '@/types';
-
-// TEMPORARY: Enable mock data for UI testing without backend
-const USE_MOCK_DATA = true;
 
 const ACCOUNTS_KEY = ['entry-accounts'] as const;
 const EVENTS_KEY = ['ledger-events'] as const;
@@ -107,6 +102,7 @@ export function useDeleteEntryAccount() {
 export function useLedgerEvents(params: EventsQueryParams = {}) {
   const queryParams = new URLSearchParams();
 
+  if (params.effective_classification) queryParams.set('effective_classification', 'true');
   if (params.asset_symbol) queryParams.set('asset_symbol', params.asset_symbol);
   if (params.event_type) queryParams.set('event_type', params.event_type);
   if (params.from_date) queryParams.set('from_date', params.from_date);
@@ -119,29 +115,6 @@ export function useLedgerEvents(params: EventsQueryParams = {}) {
   return useQuery({
     queryKey: [...EVENTS_KEY, params],
     queryFn: async () => {
-      if (USE_MOCK_DATA) {
-        // Simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        // Apply filters to mock data
-        let filteredEvents = [...mockLedgerEvents.events];
-        if (params.asset_symbol) {
-          filteredEvents = filteredEvents.filter(
-            (e) => e.asset_id.symbol === params.asset_symbol
-          );
-        }
-        if (params.event_type) {
-          filteredEvents = filteredEvents.filter(
-            (e) => e.event_type === params.event_type
-          );
-        }
-        return {
-          events: filteredEvents,
-          pagination: {
-            ...mockLedgerEvents.pagination,
-            total: filteredEvents.length,
-          },
-        };
-      }
       const url = `/api/v1/ledger/events${queryString ? `?${queryString}` : ''}`;
       const response = await apiClient<LedgerEventListResponse>(url);
       return response;
@@ -178,6 +151,9 @@ export function useCreateLedgerEvent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: EVENTS_KEY });
       queryClient.invalidateQueries({ queryKey: BALANCES_KEY });
+      queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+      queryClient.invalidateQueries({ queryKey: ['asset-flow'] });
+      queryClient.invalidateQueries({ queryKey: ['event-trace'] });
     },
   });
 }
@@ -197,6 +173,9 @@ export function useReclassifyEvent() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: EVENTS_KEY });
       queryClient.invalidateQueries({ queryKey: BALANCES_KEY });
+      queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+      queryClient.invalidateQueries({ queryKey: ['asset-flow'] });
+      queryClient.invalidateQueries({ queryKey: ['event-trace'] });
     },
   });
 }
@@ -229,31 +208,20 @@ export function useBalances(asOf?: string) {
 /**
  * Fetch asset flow DAG
  */
-export function useAssetFlow(assetSymbol: string, fromDate?: string, toDate?: string) {
-  const queryParams = new URLSearchParams();
-  queryParams.set('asset_symbol', assetSymbol);
-  if (fromDate) queryParams.set('from_date', fromDate);
-  if (toDate) queryParams.set('to_date', toDate);
-
+export function useAssetFlow(query: FlowQuery) {
   return useQuery({
-    queryKey: ['asset-flow', assetSymbol, fromDate, toDate],
-    queryFn: () =>
-      apiClient<AssetFlowResponse>(`/api/v1/ledger/flow?${queryParams.toString()}`),
-    enabled: !!assetSymbol,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    queryKey: ['asset-flow', query],
+    queryFn: () => getAssetFlow(query),
+    staleTime: 30 * 1000,
   });
 }
 
-/**
- * Trace an event to its origin
- */
-export function useEventTrace(eventId: string) {
+export function useEventTrace(eventId: string, query: TraceQuery = {}) {
   return useQuery({
-    queryKey: ['event-trace', eventId],
-    queryFn: () =>
-      apiClient<EventTraceResponse>(`/api/v1/ledger/events/${eventId}/trace`),
+    queryKey: ['event-trace', eventId, query],
+    queryFn: () => getEventTrace(eventId, query),
     enabled: !!eventId,
-    staleTime: 10 * 60 * 1000, // 10 minutes (historical data)
+    staleTime: 30 * 1000,
   });
 }
 
@@ -266,5 +234,7 @@ export function useRefreshLedger() {
   return () => {
     queryClient.invalidateQueries({ queryKey: EVENTS_KEY });
     queryClient.invalidateQueries({ queryKey: BALANCES_KEY });
+    queryClient.invalidateQueries({ queryKey: ['asset-flow'] });
+    queryClient.invalidateQueries({ queryKey: ['event-trace'] });
   };
 }

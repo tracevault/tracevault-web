@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
 import { toast } from 'sonner';
 
 import {
@@ -18,12 +17,12 @@ import {
   useCrypto,
   useCreateConnection,
   useTestConnection,
-  useStartSync,
 } from '@/hooks';
-import type { ExchangeType } from '@/types';
+import type { Connection, ExchangeType } from '@/types';
 
 interface ConnectExchangeModalProps {
   exchange: ExchangeType | null;
+  reconnectTarget?: Connection | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
@@ -33,6 +32,7 @@ type ModalState = 'form' | 'syncing' | 'completed' | 'error';
 
 export function ConnectExchangeModal({
   exchange,
+  reconnectTarget,
   open,
   onOpenChange,
   onSuccess,
@@ -63,9 +63,9 @@ export function ConnectExchangeModal({
 
       const result = await testConnection.mutateAsync({
         exchange,
-        encrypted_api_key: encrypted.encryptedApiKey,
-        encrypted_secret_key: encrypted.encryptedSecretKey,
-        iv: encrypted.iv,
+        api_key_encrypted: encrypted.encryptedApiKey,
+        api_secret_encrypted: encrypted.encryptedSecretKey,
+        key_id: encrypted.keyId,
         ephemeral_public_key: encrypted.ephemeralPublicKey,
       });
 
@@ -81,7 +81,7 @@ export function ConnectExchangeModal({
     }
   };
 
-  const handleSubmit = async (data: { apiKey: string; secretKey: string }) => {
+  const handleSubmit = async (data: { apiKey: string; secretKey: string; label: string }) => {
     if (!exchange) return;
 
     setError(null);
@@ -93,16 +93,18 @@ export function ConnectExchangeModal({
       // Create connection
       const response = await createConnection.mutateAsync({
         exchange,
-        encrypted_api_key: encrypted.encryptedApiKey,
-        encrypted_secret_key: encrypted.encryptedSecretKey,
-        iv: encrypted.iv,
+        label: data.label,
+        ...(reconnectTarget ? { reconnect_connection_id: reconnectTarget.id } : {}),
+        api_key_encrypted: encrypted.encryptedApiKey,
+        api_secret_encrypted: encrypted.encryptedSecretKey,
+        key_id: encrypted.keyId,
         ephemeral_public_key: encrypted.ephemeralPublicKey,
       });
 
       setConnectionId(response.connection.id);
 
       // If sync started automatically, show sync progress
-      if (response.sync_started) {
+      if (response.connection.status === 'syncing') {
         setModalState('syncing');
         toast.success(`${exchangeInfo?.name} 연결 완료`, {
           description: '동기화를 시작합니다...',
@@ -141,23 +143,14 @@ export function ConnectExchangeModal({
         <DialogHeader>
           <div className="flex items-center gap-3">
             <div className="relative h-10 w-10 overflow-hidden rounded-lg bg-muted">
-              <Image
-                src={exchangeInfo.logoUrl}
-                alt={exchangeInfo.name}
-                fill
-                className="object-contain p-1"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
               <div className="absolute inset-0 flex items-center justify-center text-lg font-bold text-muted-foreground">
                 {exchangeInfo.name[0]}
               </div>
             </div>
             <div>
-              <DialogTitle>{exchangeInfo.name} 연결</DialogTitle>
+              <DialogTitle>{exchangeInfo.name} {reconnectTarget ? '다시 연결' : '연결'}</DialogTitle>
               <DialogDescription>
-                API Key를 입력하여 거래소를 연결하세요.
+                {reconnectTarget ? `${reconnectTarget.label || '보관된 계정'} (${reconnectTarget.id})과 같은 거래소 계정의 API Key를 입력하세요.` : 'API Key를 입력하여 거래소를 연결하세요.'}
               </DialogDescription>
             </div>
           </div>
@@ -167,6 +160,8 @@ export function ConnectExchangeModal({
           {modalState === 'form' && (
             <ApiKeyForm
               exchange={exchange}
+              initialLabel={reconnectTarget?.label}
+              reconnecting={!!reconnectTarget}
               onSubmit={handleSubmit}
               onTest={handleTest}
               isSubmitting={createConnection.isPending}

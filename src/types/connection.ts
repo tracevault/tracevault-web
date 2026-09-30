@@ -1,28 +1,31 @@
-/**
- * Exchange connection types for Phase 2
- */
+import type { components } from './generated/http';
 
-// Supported exchanges
-export type ExchangeType = 'upbit' | 'bithumb' | 'binance';
+export type ExchangeCapability = components['schemas']['ExchangeCapability'];
+export type ExchangeCapabilitiesResponse = components['schemas']['ExchangeCapabilitiesResponse'];
 
-// Connection status enum
-export type ConnectionStatus =
-  | 'pending'
-  | 'connected'
-  | 'syncing'
-  | 'error'
-  | 'disconnected';
-
-// Sync status enum
-export type SyncStatus =
-  | 'idle'
-  | 'starting'
-  | 'fetching_trades'
-  | 'fetching_deposits'
-  | 'fetching_withdrawals'
-  | 'processing'
-  | 'completed'
-  | 'failed';
+export type ExchangeType = components['schemas']['ExchangeType'];
+export type ConnectionStatus = components['schemas']['ConnectionStatus'];
+export type Connection = components['schemas']['Connection'];
+export type CreateConnectionRequest = components['schemas']['CreateConnectionRequest'];
+export type CreateConnectionResponse = components['schemas']['CreateConnectionResponse'];
+export type ConnectionListResponse = components['schemas']['ConnectionListResponse'];
+export type StartSyncRequest = components['schemas']['StartSyncRequest'];
+export type StartSyncResponse = components['schemas']['StartSyncResponse'];
+export type ServerPublicKeyResponse = components['schemas']['ServerPublicKeyResponse'];
+export type TestConnectionRequest = components['schemas']['TestConnectionRequest'];
+export type TestConnectionResponse = components['schemas']['TestConnectionResponse'];
+export type SyncStatusResponse = components['schemas']['SyncStatusResponse'];
+export type SyncStatus = ConnectionStatus;
+export type Wallet = components['schemas']['Wallet'];
+export type WalletCapability = components['schemas']['WalletCapability'];
+export type WalletCapabilitiesResponse = components['schemas']['WalletCapabilitiesResponse'];
+export type BeginWalletOwnershipRequest = components['schemas']['BeginWalletOwnershipRequest'];
+export type WalletOwnershipChallenge = components['schemas']['WalletOwnershipChallenge'];
+export type CompleteWalletOwnershipRequest = components['schemas']['CompleteWalletOwnershipRequest'];
+export type AddWatchOnlyWalletRequest = components['schemas']['AddWatchOnlyWalletRequest'];
+export type WalletResponse = components['schemas']['WalletResponse'];
+export type WalletChain = components['schemas']['WalletChain'];
+export type WalletSignatureScheme = components['schemas']['WalletSignatureScheme'];
 
 // Exchange metadata for display
 export interface ExchangeInfo {
@@ -32,108 +35,20 @@ export interface ExchangeInfo {
   logoUrl: string;
   websiteUrl: string;
   apiDocsUrl: string;
-  features: {
-    trades: boolean;
-    deposits: boolean;
-    withdrawals: boolean;
-    balances: boolean;
-  };
   requiredFields: {
     apiKey: boolean;
     secretKey: boolean;
-    passphrase?: boolean; // Some exchanges like Coinbase Pro require this
+    passphrase?: boolean;
+  };
+  credentialFields?: {
+    apiKeyLabel: string;
+    apiKeyPlaceholder: string;
+    apiKeyDescription: string;
+    secretKeyLabel: string;
+    secretKeyPlaceholder: string;
+    secretKeyDescription: string;
+    secretMultiline?: boolean;
   };
 }
 
-// Connection entity from API
-export interface Connection {
-  id: string;
-  user_id: string;
-  exchange: ExchangeType;
-  status: ConnectionStatus;
-  last_synced_at: string | null;
-  error_message: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-// Sync progress from SSE
-export interface SyncProgress {
-  connection_id: string;
-  status: SyncStatus;
-  current_step: number;
-  total_steps: number;
-  message: string;
-  progress_percent: number;
-  items_processed: number;
-  items_total: number;
-  error?: string;
-  started_at: string;
-  updated_at: string;
-}
-
-// Request to create a connection
-export interface CreateConnectionRequest {
-  exchange: ExchangeType;
-  encrypted_api_key: string;
-  encrypted_secret_key: string;
-  iv: string;
-  ephemeral_public_key: string;
-}
-
-// Response from creating a connection
-export interface CreateConnectionResponse {
-  connection: Connection;
-  sync_started: boolean;
-}
-
-// Response for listing connections
-export interface ConnectionListResponse {
-  connections: Connection[];
-}
-
-// Request to start sync
-export interface StartSyncRequest {
-  full_sync?: boolean; // If true, re-sync all data
-}
-
-// Response from starting sync
-export interface StartSyncResponse {
-  connection_id: string;
-  sync_started: boolean;
-  message: string;
-}
-
-// Server public key response (for encryption)
-export interface ServerPublicKeyResponse {
-  public_key: string;
-  algorithm: string;
-  expires_at: string;
-}
-
-// Test connection request
-export interface TestConnectionRequest {
-  exchange: ExchangeType;
-  encrypted_api_key: string;
-  encrypted_secret_key: string;
-  iv: string;
-  ephemeral_public_key: string;
-}
-
-// Test connection response
-export interface TestConnectionResponse {
-  success: boolean;
-  message: string;
-  account_info?: {
-    account_id?: string;
-    balances_count?: number;
-  };
-}
-
-// SSE event types for sync progress
-export type SyncEventType = 'progress' | 'completed' | 'error' | 'heartbeat';
-
-export interface SyncEvent {
-  type: SyncEventType;
-  data: SyncProgress;
-}
+export type SyncProgress = SyncStatusResponse & { connection_id: string };

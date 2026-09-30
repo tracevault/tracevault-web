@@ -1,372 +1,138 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import {
-  TrendingUp,
-  TrendingDown,
-  RefreshCw,
-  Loader2,
-  AlertCircle,
-} from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import Link from 'next/link';
+import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SectionHeader } from '@/components/ui/section-header';
 import { DataCard, DataValue } from '@/components/ui/data-card';
-import { usePortfolio, usePortfolioHistory, useConnections } from '@/hooks';
-import type { Amount, PortfolioAsset } from '@/types';
+import { usePortfolio, usePortfolioHistory, useConnections, useLedgerEvents } from '@/hooks';
+import { assetIdentity, formatAmount, valuationDifference } from '@/lib/amount';
+import type { PortfolioHistoryQueryParams } from '@/types';
+import { QueryError, Loading } from '@/components/ui/query-state';
 
-// Color palette for assets
-const assetColors: Record<string, string> = {
-  BTC: '#F7931A',
-  ETH: '#627EEA',
-  SOL: '#00FFA3',
-  USDT: '#26A17B',
-  USDC: '#2775CA',
-  BNB: '#F3BA2F',
-  XRP: '#23292F',
-  ADA: '#0D1E30',
-  DOGE: '#C2A633',
-  DOT: '#E6007A',
-};
-
-function getAssetColor(symbol: string): string {
-  return assetColors[symbol] || `hsl(${symbol.charCodeAt(0) * 37 % 360}, 60%, 50%)`;
+function displayTime(timestamp: string) {
+  return new Date(timestamp).toLocaleString('ko-KR', { timeZone: 'UTC' }) + ' UTC';
 }
-
-// Helper to format Amount to display string
-function formatAmount(amount: Amount | undefined, currency?: string): string {
-  if (!amount) return '-';
-  const value = parseFloat(amount.value);
-
-  if (currency === 'KRW') {
-    return `₩${value.toLocaleString('ko-KR', { maximumFractionDigits: 0 })}`;
-  } else if (currency === 'USD') {
-    return `$${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
-  }
-
-  return value.toLocaleString('ko-KR', { maximumFractionDigits: amount.scale });
-}
-
-// Helper to format compact number (e.g., 125.4M)
-function formatCompact(amount: Amount | undefined, currency?: string): string {
-  if (!amount) return '-';
-  const value = parseFloat(amount.value);
-  const prefix = currency === 'KRW' ? '₩' : currency === 'USD' ? '$' : '';
-
-  if (value >= 1_000_000_000) {
-    return `${prefix}${(value / 1_000_000_000).toFixed(1)}B`;
-  } else if (value >= 1_000_000) {
-    return `${prefix}${(value / 1_000_000).toFixed(1)}M`;
-  } else if (value >= 1_000) {
-    return `${prefix}${(value / 1_000).toFixed(1)}K`;
-  }
-  return `${prefix}${value.toFixed(0)}`;
-}
+const statusLabels: Record<string, string> = { idle: '동기화 대기', syncing: '동기화 중', completed: '동기화 완료', failed: '동기화 실패' };
 
 export default function PortfolioPage() {
-  const [timeRange, setTimeRange] = useState('24h');
-
-  // Fetch portfolio data
-  const {
-    data: portfolio,
-    isLoading: isLoadingPortfolio,
-    isError: isErrorPortfolio,
-    error: portfolioError,
-    refetch: refetchPortfolio,
-  } = usePortfolio('KRW');
-
-  // Fetch connections for exchange breakdown
-  const { data: connections } = useConnections();
-
-  // Calculate 24h change (would need portfolio history for real calculation)
-  const portfolioChange = useMemo(() => {
-    // TODO: Calculate from portfolio history when available
-    return {
-      percentage: '+2.34%',
-      value: '₩2,872,000',
-      isPositive: true,
-    };
-  }, []);
-
-  // Group assets by exchange (simulated - real implementation would need exchange info per asset)
-  const exchangeBreakdown = useMemo(() => {
-    if (!connections) return [];
-
-    // Simulated breakdown based on connections
-    const totalValue = parseFloat(portfolio?.total_value_local?.value || '0');
-
-    return connections.map((conn, index) => ({
-      exchange: conn.exchange.charAt(0).toUpperCase() + conn.exchange.slice(1),
-      value: formatAmount(
-        { value: (totalValue * (0.5 - index * 0.15)).toString(), scale: 0 },
-        'KRW'
-      ),
-      percentage: Math.round((0.5 - index * 0.15) * 100),
-      assets: Math.floor(Math.random() * 5) + 1,
-    }));
-  }, [connections, portfolio]);
-
-  // Recent activity (would need events API for real data)
-  const recentActivity = useMemo(() => {
-    // Placeholder - would come from ledger events
-    return [
-      { type: 'deposit', asset: 'BTC', amount: '+0.05', time: '2시간 전' },
-      { type: 'trade', asset: 'ETH', amount: '-1.0', time: '5시간 전' },
-      { type: 'reward', asset: 'SOL', amount: '+2.1', time: '1일 전' },
-    ];
-  }, []);
-
-  const handleRefresh = () => {
-    refetchPortfolio();
-  };
-
-  // Loading state
-  if (isLoadingPortfolio) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-[#666666]" />
-      </div>
-    );
+  const portfolio = usePortfolio('KRW');
+  const connections = useConnections();
+  const events = useLedgerEvents({ limit: 5 });
+  const [dates, setDates] = useState(() => {
+    const to = new Date();
+    const from = new Date(to); from.setUTCDate(from.getUTCDate() - 7);
+    return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
+  });
+  const [range, setRange] = useState<PortfolioHistoryQueryParams>();
+  const [historyPageTokens, setHistoryPageTokens] = useState(['']);
+  const [historyPageIndex, setHistoryPageIndex] = useState(0);
+  const [rangeError, setRangeError] = useState('');
+  const history = usePortfolioHistory(range ? { ...range, page_size: 10, page_token: historyPageTokens[historyPageIndex] || undefined } : undefined);
+  const snapshots = history.data?.snapshots;
+  let difference: string | undefined;
+  if (!history.isError && snapshots && snapshots.length > 1) {
+    try { difference = formatAmount(valuationDifference(snapshots[0].total_value_local, snapshots[snapshots.length - 1].total_value_local), snapshots[0].local_currency); }
+    catch { difference = '변동액을 계산할 수 없습니다'; }
   }
 
-  // Error state
-  if (isErrorPortfolio) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
-        <AlertCircle className="h-12 w-12 text-[#EF4444] mb-4" />
-        <h2 className="text-lg font-semibold text-black mb-2">포트폴리오를 불러올 수 없습니다</h2>
-        <p className="text-sm text-[#666666] mb-4">
-          {portfolioError instanceof Error ? portfolioError.message : '알 수 없는 오류가 발생했습니다'}
-        </p>
-        <Button onClick={handleRefresh} variant="outline">
-          다시 시도
-        </Button>
-      </div>
-    );
+  function submitHistory(event: FormEvent) {
+    event.preventDefault();
+    const from = new Date(`${dates.from}T00:00:00Z`), to = new Date(`${dates.to}T00:00:00Z`);
+    const count = (to.getTime() - from.getTime()) / 86400000;
+    if (!Number.isFinite(count) || count < 0 || count >= 1000 || to.getTime() > Date.now()) {
+      setRangeError('시작일과 종료일을 확인해주세요. 최대 1,000일이며 미래 날짜는 조회할 수 없습니다.'); return;
+    }
+    setRangeError('');
+    const next = { from_date: from.toISOString(), to_date: to.toISOString(), granularity: 'DAY' as const, local_currency: 'KRW' };
+    const sameRange = range?.from_date === next.from_date && range.to_date === next.to_date;
+    setHistoryPageTokens(['']);
+    setHistoryPageIndex(0);
+    setRange(next);
+    if (sameRange && historyPageIndex === 0) void history.refetch();
   }
+  function refresh() {
+    void portfolio.refetch(); void connections.refetch(); void events.refetch();
+    if (range) void history.refetch();
+  }
+  const assets = portfolio.data?.assets;
 
-  const assets = portfolio?.assets || [];
-  const totalValueLocal = formatAmount(portfolio?.total_value_local, portfolio?.local_currency);
-  const totalValueUsd = formatAmount(portfolio?.total_value_usd, 'USD');
+  return <div className="space-y-6">
+    <header className="flex items-start justify-between gap-3">
+      <div><h1 className="text-3xl font-bold">Portfolio</h1><p className="mt-1 text-sm text-gray-600">자산 현황 및 평가 내역</p></div>
+      <Button variant="outline" onClick={refresh} aria-label="포트폴리오 데이터 새로고침"><RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />새로고침</Button>
+    </header>
 
-  return (
-    <div className="space-y-6">
-      {/* Page Header */}
-      <header className="flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-black">Portfolio</h1>
-          <p className="mt-1 text-sm text-[#666666]">
-            자산 현황 및 포트폴리오 분석
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="border-[#EEEEEE]"
-          onClick={handleRefresh}
-          aria-label="포트폴리오 데이터 새로고침"
-        >
-          <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
-          새로고침
-        </Button>
-      </header>
-
-      {/* Total Value Card */}
+    {portfolio.isPending ? <Loading /> : portfolio.isError ? <QueryError error={portfolio.error} retry={() => void portfolio.refetch()} /> : portfolio.data && <>
       <DataCard className="bg-black text-white" hover={false}>
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div>
-            <div className="text-xs sm:text-sm uppercase tracking-wide text-white/60">
-              총 자산 가치
-            </div>
-            <div className="mt-2 text-3xl sm:text-4xl font-bold tabular-nums">
-              {totalValueLocal}
-            </div>
-            <div className="mt-1 text-sm text-white/60">
-              ≈ {totalValueUsd}
-            </div>
-          </div>
-          <div className="sm:text-right">
-            <div
-              className={`flex items-center gap-1 text-lg font-medium ${
-                portfolioChange.isPositive ? 'text-[#22C55E]' : 'text-[#EF4444]'
-              }`}
-            >
-              {portfolioChange.isPositive ? (
-                <TrendingUp className="h-5 w-5" />
-              ) : (
-                <TrendingDown className="h-5 w-5" />
-              )}
-              {portfolioChange.percentage}
-            </div>
-            <div className="text-sm text-white/60">
-              {portfolioChange.value}
-            </div>
-          </div>
-        </div>
-
-        {/* Time Range Selector */}
-        <div className="mt-6 flex flex-wrap gap-2" role="group" aria-label="기간 선택">
-          {['24h', '7d', '30d', '1y', 'All'].map((range) => (
-            <Button
-              key={range}
-              variant="ghost"
-              size="sm"
-              onClick={() => setTimeRange(range)}
-              className={`${
-                timeRange === range
-                  ? 'bg-white text-black'
-                  : 'text-white/60 hover:bg-white/10 hover:text-white'
-              }`}
-              aria-pressed={timeRange === range}
-              aria-label={`${range} 기간 보기`}
-            >
-              {range}
-            </Button>
-          ))}
-        </div>
+        <p className="text-sm text-white/60">총 자산 가치</p>
+        <p className="mt-2 break-all font-mono text-2xl sm:text-3xl" data-testid="portfolio-total">{formatAmount(portfolio.data.total_value_local, portfolio.data.local_currency)}</p>
+        <p className="mt-2 break-all font-mono text-sm text-white/70">{formatAmount(portfolio.data.total_value_usd, 'USD')}</p>
+        <p className="mt-4 text-xs text-white/60">평가 시각: {displayTime(portfolio.data.timestamp)}</p>
       </DataCard>
-
-      {/* Main Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Asset Allocation */}
-        <div className="lg:col-span-2 overflow-hidden rounded-lg border border-[#EEEEEE]">
-          <SectionHeader title="Asset Allocation" marker="◆" />
-
-          <div className="p-4 sm:p-6">
-            {/* Visual Bar */}
-            {assets.length > 0 && (
-              <div className="mb-6 flex h-3 sm:h-4 overflow-hidden rounded-full">
-                {assets.map((asset) => (
-                  <div
-                    key={asset.asset_id.symbol}
-                    style={{
-                      width: `${asset.percentage}%`,
-                      backgroundColor: getAssetColor(asset.asset_id.symbol),
-                    }}
-                    title={`${asset.asset_id.symbol}: ${asset.percentage.toFixed(1)}%`}
-                  />
-                ))}
-              </div>
-            )}
-
-            {/* Asset List */}
-            <div className="space-y-4">
-              {assets.length === 0 ? (
-                <div className="py-8 text-center text-[#666666]">
-                  보유 자산이 없습니다
-                </div>
-              ) : (
-                assets.map((asset) => (
-                  <div
-                    key={asset.asset_id.symbol}
-                    className="flex items-center justify-between border-b border-[#EEEEEE] pb-4 last:border-b-0 last:pb-0"
-                  >
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div
-                        className="h-8 w-8 sm:h-10 sm:w-10 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: getAssetColor(asset.asset_id.symbol) }}
-                      />
-                      <div className="min-w-0">
-                        <div className="font-medium text-black">{asset.asset_id.symbol}</div>
-                        <div className="text-xs sm:text-sm text-[#666666] truncate">
-                          {asset.asset_id.chain_id || 'Native'}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="font-mono font-medium text-sm sm:text-base">
-                        {formatAmount(asset.value_local, portfolio?.local_currency)}
-                      </div>
-                      <div className="text-xs sm:text-sm text-[#666666]">
-                        <span className="hidden sm:inline">
-                          {formatAmount(asset.balance)} {asset.asset_id.symbol} ·{' '}
-                        </span>
-                        {asset.percentage.toFixed(1)}%
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
+      <section className="overflow-hidden rounded-lg border border-gray-200" aria-label="보유 자산">
+        <SectionHeader title="보유 자산" marker="◆" />
+        {!assets?.length ? <p className="p-6 text-gray-600">보유 자산이 없습니다. <Link href="/connections" className="underline">거래소 연결 및 동기화</Link></p> :
+          <div className="divide-y divide-gray-100">{assets.map(asset => <div key={assetIdentity(asset.asset_id)} className="grid gap-3 p-4 sm:grid-cols-2">
+            <div><p className="font-semibold">{asset.asset_id.symbol}</p><p className="break-all text-xs text-gray-600">{asset.asset_id.chain_id || '체인 미지정'}{asset.asset_id.contract ? ` · ${asset.asset_id.contract}` : ''}</p>
+              <p className="mt-1 break-all font-mono text-sm">수량 {formatAmount(asset.balance)}</p></div>
+            <div className="sm:text-right"><p className="break-all font-mono">{formatAmount(asset.value_local, portfolio.data!.local_currency)}</p>
+              <p className="text-sm text-gray-600">비중 {Number.isFinite(asset.percentage) ? asset.percentage.toFixed(2) + '%' : '확인 필요'}</p></div>
+          </div>)}</div>}
+      </section>
+      <section className="overflow-hidden rounded-lg border border-gray-200" aria-label="계정별 자산 배분">
+        <SectionHeader title="계정별 자산 배분" marker="★" />
+        {!portfolio.data.allocation_complete && <div role="status" className="border-b border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          일부 원장 기록에 계정 정보가 없어 전체 금액을 계정별로 나눌 수 없습니다. 아래 미귀속 금액을 확인해주세요.
+        </div>}
+        {!portfolio.data.accounts.length ? <p className="p-4 text-sm text-gray-600">계정에 귀속된 보유 자산이 없습니다.</p> :
+          <div className="grid gap-4 p-4 lg:grid-cols-2">{portfolio.data.accounts.map(account => <article key={account.account.id} className="rounded-lg border border-gray-200 p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div><h2 className="font-semibold">{account.account.label || account.account.identifier}</h2><p className="text-xs text-gray-600">{account.account.exchange_id || account.account.chain_id || account.account.type} · #{account.account.id.slice(-6)}</p></div>
+              <p className="text-sm text-gray-600">{Number.isFinite(account.percentage) ? account.percentage.toFixed(2) + '%' : '확인 필요'}</p>
             </div>
-          </div>
-        </div>
+            <p className="mt-3 break-all font-mono">{formatAmount(account.total_value_local, portfolio.data.local_currency)}</p>
+            <ul className="mt-3 divide-y text-sm">{account.assets.map(asset => <li key={assetIdentity(asset.asset_id)} className="flex justify-between gap-3 py-2"><span>{asset.asset_id.symbol} <span className="font-mono text-xs text-gray-500">{formatAmount(asset.balance)}</span></span><span className="break-all font-mono text-right">{formatAmount(asset.value_local, portfolio.data!.local_currency)}</span></li>)}</ul>
+          </article>)}</div>}
+        {!portfolio.data.allocation_complete && <div className="border-t border-gray-200 p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2"><h2 className="font-semibold">미귀속 자산</h2><p className="break-all font-mono text-sm">{formatAmount(portfolio.data.unattributed_value_local, portfolio.data.local_currency)}</p></div>
+          {!portfolio.data.unattributed_assets.length ? <p className="mt-2 text-sm text-gray-600">이 Ledger는 계정 배분 정보를 제공하지 않습니다.</p> : <ul className="mt-3 divide-y text-sm">{portfolio.data.unattributed_assets.map(asset => <li key={assetIdentity(asset.asset_id)} className="flex justify-between gap-3 py-2"><span>{asset.asset_id.symbol} <span className="font-mono text-xs text-gray-500">{formatAmount(asset.balance)}</span></span><span className="break-all font-mono text-right">{formatAmount(asset.value_local, portfolio.data!.local_currency)}</span></li>)}</ul>}
+        </div>}
+      </section>
+    </>}
 
-        {/* Right Column */}
-        <div className="space-y-6">
-          {/* Exchange Breakdown */}
-          <div className="overflow-hidden rounded-lg border border-[#EEEEEE]">
-            <SectionHeader title="By Exchange" marker="●" />
-            <div className="p-4 space-y-3">
-              {exchangeBreakdown.length === 0 ? (
-                <div className="py-4 text-center text-sm text-[#666666]">
-                  연결된 거래소가 없습니다
-                </div>
-              ) : (
-                exchangeBreakdown.map((ex) => (
-                  <div key={ex.exchange} className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{ex.exchange}</span>
-                      <span className="text-[#666666]">{ex.value}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="h-2 flex-1 rounded-full bg-[#EEEEEE]">
-                        <div
-                          className="h-full rounded-full bg-black"
-                          style={{ width: `${ex.percentage}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-[#666666]">{ex.percentage}%</span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+    <section className="overflow-hidden rounded-lg border border-gray-200" aria-label="과거 평가 내역">
+      <SectionHeader title="과거 평가 내역" marker="◆" />
+      <form onSubmit={submitHistory} className="flex flex-wrap items-end gap-3 p-4">
+        <label className="space-y-1 text-sm"><span className="block">시작일</span><input type="date" required value={dates.from} onChange={e => setDates({ ...dates, from: e.target.value })} className="rounded border p-2" /></label>
+        <label className="space-y-1 text-sm"><span className="block">종료일</span><input type="date" required value={dates.to} onChange={e => setDates({ ...dates, to: e.target.value })} className="rounded border p-2" /></label>
+        <Button type="submit" disabled={history.isFetching}>조회</Button>
+      </form>
+      <p className="px-4 pb-4 text-xs text-gray-600">각 날짜 00:00 UTC의 보유 수량과 해당 날짜의 시세로 평가합니다. 평가액 변동에는 입출금이 포함됩니다.</p>
+      {rangeError && <p role="alert" className="px-4 pb-4 text-sm text-red-700">{rangeError}</p>}
+      {!range ? <p className="p-4 text-sm text-gray-600">조회할 기간을 선택해주세요.</p> : history.isFetching ? <Loading /> : history.isError ? <QueryError error={history.error} retry={() => void history.refetch()} /> : snapshots && <>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 text-sm"><span>{historyPageIndex + 1}페이지 · 페이지당 최대 10개</span><div className="flex gap-2"><Button variant="outline" disabled={history.isFetching || historyPageIndex === 0} onClick={() => setHistoryPageIndex(index => Math.max(0, index - 1))}>이전</Button><Button variant="outline" disabled={history.isFetching || !history.data?.has_more || !history.data.next_page_token} onClick={() => { const token = history.data?.next_page_token; if (!token) return; setHistoryPageTokens(tokens => [...tokens.slice(0, historyPageIndex + 1), token]); setHistoryPageIndex(index => index + 1); }}>다음</Button></div></div>
+        {difference && <p className="break-all p-4 text-sm">현재 페이지 평가액 변동: <span className="font-mono">{difference}</span></p>}
+        {!snapshots.length ? <p className="p-4 text-sm text-gray-600">해당 기간의 평가 내역이 없습니다.</p> : <div className="max-h-96 overflow-auto"><table className="w-full text-left text-sm"><caption className="sr-only">날짜별 원화 및 달러 평가액</caption><thead><tr><th className="p-3">평가 시점 (UTC)</th><th className="p-3">원화 평가액</th><th className="p-3">달러 평가액</th></tr></thead><tbody>{snapshots.map(point => <tr key={point.timestamp} className="border-t"><td className="whitespace-nowrap p-3">{point.timestamp.slice(0, 10)}</td><td className="break-all p-3 font-mono">{formatAmount(point.total_value_local, point.local_currency)}</td><td className="break-all p-3 font-mono">{formatAmount(point.total_value_usd, 'USD')}</td></tr>)}</tbody></table></div>}
+      </>}
+    </section>
 
-          {/* Recent Activity */}
-          <div className="overflow-hidden rounded-lg border border-[#EEEEEE]">
-            <SectionHeader title="Recent Activity" marker="▶" />
-            <div className="divide-y divide-[#EEEEEE]">
-              {recentActivity.map((activity, idx) => (
-                <div key={idx} className="flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium">{activity.asset}</span>
-                    <span
-                      className={`font-mono text-sm ${
-                        activity.amount.startsWith('+')
-                          ? 'text-[#22C55E]'
-                          : 'text-[#EF4444]'
-                      }`}
-                    >
-                      {activity.amount}
-                    </span>
-                  </div>
-                  <span className="text-xs text-[#999999]">{activity.time}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Quick Stats */}
-      <section className="grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4" aria-label="포트폴리오 요약 통계">
-        <DataCard>
-          <DataValue value={assets.length.toString()} label="보유 자산 종류" />
-        </DataCard>
-        <DataCard>
-          <DataValue value={(connections?.length || 0).toString()} label="연결된 거래소" />
-        </DataCard>
-        <DataCard>
-          <DataValue value="-" label="총 거래 수" />
-        </DataCard>
-        <DataCard>
-          <DataValue
-            value={portfolioChange.percentage}
-            label="총 수익률"
-            trend={portfolioChange.isPositive ? 'up' : 'down'}
-          />
-        </DataCard>
+    <div className="grid gap-6 lg:grid-cols-2">
+      <section className="overflow-hidden rounded-lg border border-gray-200" aria-label="거래소 연결">
+        <SectionHeader title="거래소 연결" marker="●" />
+        {connections.isPending ? <Loading /> : connections.isError ? <QueryError error={connections.error} retry={() => void connections.refetch()} /> : !connections.data?.length ? <p className="p-4 text-sm text-gray-600">연결된 거래소가 없습니다.</p> : <ul className="divide-y">{connections.data.map(connection => <li key={connection.id} className="flex justify-between gap-3 p-4 text-sm"><span>{connection.exchange} <span className="text-gray-500">#{connection.id.slice(-6)}</span></span><span>{statusLabels[connection.status] || connection.status}</span></li>)}</ul>}
+        <Link href="/connections" className="block p-4 text-sm underline">연결 및 동기화 관리</Link>
+      </section>
+      <section className="overflow-hidden rounded-lg border border-gray-200" aria-label="최근 원장 기록">
+        <SectionHeader title="최근 원장 기록" marker="▶" />
+        {events.isPending ? <Loading /> : events.isError ? <QueryError error={events.error} retry={() => void events.refetch()} /> : !events.data?.events.length ? <p className="p-4 text-sm text-gray-600">기록된 거래가 없습니다.</p> : <ul className="divide-y">{events.data.events.map(event => <li key={event.id} className="space-y-1 p-4 text-sm"><Link href="/ledger" className="font-medium underline">{event.event_type} · {event.asset_id.symbol}</Link><p className="break-all font-mono">수량 {formatAmount(event.amount)}</p><p className="text-xs text-gray-500">{displayTime(event.event_time)}</p></li>)}</ul>}
       </section>
     </div>
-  );
+    <section className="grid gap-3 sm:grid-cols-3" aria-label="포트폴리오 요약 통계">
+      <DataCard><DataValue value={portfolio.isError || !assets ? '—' : assets.length} label="보유 자산 종류" /></DataCard>
+      <DataCard><DataValue value={connections.isError || !connections.data ? '—' : connections.data.length} label="거래소 연결 수" /></DataCard>
+      <DataCard><DataValue value={events.isError || !events.data ? '—' : events.data.pagination.total.toLocaleString('ko-KR')} label="원장 기록 수" /></DataCard>
+    </section>
+  </div>;
 }

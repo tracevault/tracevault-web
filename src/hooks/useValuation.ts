@@ -2,7 +2,6 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api';
-import { mockPortfolio } from '@/lib/mockData';
 import type {
   PriceData,
   PriceHistoryResponse,
@@ -14,9 +13,6 @@ import type {
   PriceHistoryQueryParams,
   PortfolioHistoryQueryParams,
 } from '@/types';
-
-// TEMPORARY: Enable mock data for UI testing without backend
-const USE_MOCK_DATA = true;
 
 const PRICE_KEY = ['price'] as const;
 const PORTFOLIO_KEY = ['portfolio'] as const;
@@ -132,11 +128,6 @@ export function usePortfolio(localCurrency?: string) {
   return useQuery({
     queryKey: [...PORTFOLIO_KEY, 'current', localCurrency],
     queryFn: async () => {
-      if (USE_MOCK_DATA) {
-        // Simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        return mockPortfolio;
-      }
       return apiClient<PortfolioResponse>(`/api/v1/valuation/portfolio${queryParams}`);
     },
     staleTime: 30 * 1000, // 30 seconds
@@ -146,18 +137,20 @@ export function usePortfolio(localCurrency?: string) {
 /**
  * Fetch portfolio history
  */
-export function usePortfolioHistory(params: PortfolioHistoryQueryParams) {
+export function usePortfolioHistory(params?: PortfolioHistoryQueryParams) {
   const queryParams = new URLSearchParams();
-  queryParams.set('from_date', params.from_date);
-  queryParams.set('to_date', params.to_date);
-  if (params.granularity) queryParams.set('granularity', params.granularity);
-  if (params.local_currency) queryParams.set('local_currency', params.local_currency);
+  queryParams.set('from_date', params?.from_date || '');
+  queryParams.set('to_date', params?.to_date || '');
+  if (params?.granularity) queryParams.set('granularity', params.granularity);
+  if (params?.local_currency) queryParams.set('local_currency', params.local_currency);
+  if (params?.page_size) queryParams.set('page_size', String(params.page_size));
+  if (params?.page_token) queryParams.set('page_token', params.page_token);
 
   return useQuery({
     queryKey: [...PORTFOLIO_KEY, 'history', params],
     queryFn: () =>
       apiClient<PortfolioHistoryResponse>(`/api/v1/valuation/portfolio/history?${queryParams.toString()}`),
-    enabled: !!params.from_date && !!params.to_date,
+    enabled: !!params?.from_date && !!params?.to_date,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 }

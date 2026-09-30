@@ -1,0 +1,12 @@
+.git
+.github
+.next
+.next-*
+.playwright-cli
+node_modules
+output
+coverage
+.env*
+!.env.example
+npm-debug.log*
+*.tsbuildinfo

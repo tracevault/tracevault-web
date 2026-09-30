@@ -3,11 +3,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { apiClient, apiClientNoAuth } from '@/lib/api';
-import { setAccessToken, setRefreshToken, clearTokens } from '@/lib/auth';
+import { browserLogin } from '@/lib/api/login';
+import { logoutSession } from '@/lib/api/client';
+import { startSession, getSession, clearTokens } from '@/lib/auth';
 import { useAuthStore } from '@/stores';
 import type {
   LoginRequest,
-  LoginResponse,
   RegisterRequest,
   RegisterResponse,
   User,
@@ -20,39 +21,32 @@ import type {
 
 export function useLogin() {
   const queryClient = useQueryClient();
-  const router = useRouter();
   const setUser = useAuthStore((state) => state.setUser);
 
   return useMutation({
     mutationFn: async (credentials: LoginRequest) => {
-      const response = await apiClientNoAuth<LoginResponse>(
-        '/api/v1/auth/login',
-        {
-          method: 'POST',
-          body: JSON.stringify(credentials),
-        }
-      );
+      const previousSessionId = getSession()?.id ?? null;
+      const response = await browserLogin(credentials);
 
-      setAccessToken(response.access_token);
-      setRefreshToken(response.refresh_token);
-
-      return response;
+      const session = await startSession(response.access_token, response.refresh_token, previousSessionId);
+      return { ...response, sessionId: session.id };
     },
     onSuccess: (data) => {
-      setUser(data.user);
+      if (getSession()?.id !== data.sessionId) return;
+      setUser(data.user, data.sessionId);
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      router.push('/dashboard');
+      // AuthRedirect owns navigation after the authenticated store changes.
     },
   });
 }
 
 export function useRegister() {
   const queryClient = useQueryClient();
-  const router = useRouter();
   const setUser = useAuthStore((state) => state.setUser);
 
   return useMutation({
     mutationFn: async (data: RegisterRequest) => {
+      const previousSessionId = getSession()?.id ?? null;
       const response = await apiClientNoAuth<RegisterResponse>(
         '/api/v1/auth/register',
         {
@@ -61,15 +55,14 @@ export function useRegister() {
         }
       );
 
-      setAccessToken(response.access_token);
-      setRefreshToken(response.refresh_token);
-
-      return response;
+      const session = await startSession(response.access_token, response.refresh_token, previousSessionId);
+      return { ...response, sessionId: session.id };
     },
     onSuccess: (data) => {
-      setUser(data.user);
+      if (getSession()?.id !== data.sessionId) return;
+      setUser(data.user, data.sessionId);
       queryClient.invalidateQueries({ queryKey: ['user'] });
-      router.push('/dashboard');
+      // AuthRedirect owns navigation after the authenticated store changes.
     },
   });
 }
@@ -77,39 +70,30 @@ export function useRegister() {
 export function useLogout() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const logout = useAuthStore((state) => state.logout);
 
   return useMutation({
-    mutationFn: async () => {
-      try {
-        await apiClient('/api/v1/auth/logout', {
-          method: 'POST',
-        });
-      } catch {
-        // Ignore logout errors - we clear local state anyway
-      }
-    },
+    mutationFn: logoutSession,
     onSettled: () => {
-      logout();
-      clearTokens();
+      if (getSession()) return;
       queryClient.clear();
       router.push('/login');
     },
+
   });
 }
 
-export function useCurrentUser() {
+export function useCurrentUser(enabled = true) {
   const setUser = useAuthStore((state) => state.setUser);
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const sessionId = useAuthStore((state) => state.sessionId);
 
   return useQuery({
-    queryKey: ['user'],
+    queryKey: ['user', sessionId],
     queryFn: async () => {
       const user = await apiClient<User>('/api/v1/users/me');
-      setUser(user);
+      if (sessionId) setUser(user, sessionId);
       return user;
     },
-    enabled: isAuthenticated,
+    enabled: enabled && !!sessionId,
     retry: false,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -121,6 +105,7 @@ export function useUpdateProfile() {
 
   return useMutation({
     mutationFn: async (data: UpdateProfileRequest) => {
+      const sessionId = getSession()?.id;
       const response = await apiClient<UpdateProfileResponse>(
         '/api/v1/users/me',
         {
@@ -128,16 +113,10 @@ export function useUpdateProfile() {
           body: JSON.stringify(data),
         }
       );
+      if (sessionId) setUser(response, sessionId);
       return response;
     },
-    onSuccess: (data) => {
-      setUser({
-        id: data.id,
-        email: data.email,
-        name: data.name,
-        created_at: data.created_at,
-        updated_at: new Date().toISOString(),
-      });
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['user'] });
     },
   });
@@ -146,13 +125,15 @@ export function useUpdateProfile() {
 export function useChangePassword() {
   return useMutation({
     mutationFn: async (data: ChangePasswordRequest) => {
+      const sessionId = getSession()?.id;
       const response = await apiClient<ChangePasswordResponse>(
         '/api/v1/users/me/password',
         {
-          method: 'PUT',
+          method: 'POST',
           body: JSON.stringify(data),
         }
       );
+      if (sessionId) await clearTokens(sessionId);
       return response;
     },
   });
@@ -161,21 +142,21 @@ export function useChangePassword() {
 export function useDeleteAccount() {
   const queryClient = useQueryClient();
   const router = useRouter();
-  const logout = useAuthStore((state) => state.logout);
 
   return useMutation({
     mutationFn: async () => {
+      const sessionId = getSession()?.id;
       const response = await apiClient<DeleteAccountResponse>(
         '/api/v1/users/me',
         {
           method: 'DELETE',
         }
       );
+      if (sessionId) await clearTokens(sessionId);
       return response;
     },
     onSuccess: () => {
-      logout();
-      clearTokens();
+      if (getSession()) return;
       queryClient.clear();
       router.push('/');
     },

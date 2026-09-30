@@ -1,0 +1,16 @@
+import type { components } from './generated/http';
+export type ProofSourceKind = components['schemas']['ProofSourceKind'];
+export type ProofInputSnapshot = components['schemas']['ProofInputSnapshot'];
+export type ProofJob = components['schemas']['ProofJob'];
+export type ProofJobList = components['schemas']['ProofJobList'];
+export type ProofProviders = components['schemas']['ProofProviders'];
+export type FrozenProof = components['schemas']['FrozenProof'];
+export type ProofVerification = components['schemas']['ProofVerification'];
+export type ProofBatch = components['schemas']['ProofBatch'];
+export type ProofBatchSummary = components['schemas']['ProofBatchSummary'];
+export type ProofBatchList = components['schemas']['ProofBatchList'];
+export type SubmitProofJobRequest = components['schemas']['SubmitProofJobRequest'];
+export type FrozenProofBatchJob = components['schemas']['FrozenProofBatchJob'];
+export type FrozenProofBatchJobList = components['schemas']['FrozenProofBatchJobList'];
+export type FrozenProofBatchItemRequest = components['schemas']['FrozenProofBatchItemRequest'];
+export type SubmitFrozenProofBatchJobRequest = components['schemas']['SubmitFrozenProofBatchJobRequest'];

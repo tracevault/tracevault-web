@@ -2,7 +2,6 @@
 // Enable by setting USE_MOCK_DATA=true in hooks
 
 import type {
-  LedgerEvent,
   LedgerEventListResponse,
   PortfolioResponse,
   TaxSummary,
@@ -14,23 +13,17 @@ import type {
 export const mockConnections: Connection[] = [
   {
     id: 'conn-1',
-    user_id: 'user-1',
     exchange: 'upbit',
-    status: 'connected',
-    last_synced_at: '2027-01-30T10:00:00Z',
-    error_message: null,
+    status: 'completed',
+    last_sync_at: '2027-01-30T10:00:00Z',
     created_at: '2026-06-01T00:00:00Z',
-    updated_at: '2027-01-30T10:00:00Z',
   },
   {
     id: 'conn-2',
-    user_id: 'user-1',
     exchange: 'binance',
-    status: 'connected',
-    last_synced_at: '2027-01-30T09:30:00Z',
-    error_message: null,
+    status: 'completed',
+    last_sync_at: '2027-01-30T09:30:00Z',
     created_at: '2026-07-15T00:00:00Z',
-    updated_at: '2027-01-30T09:30:00Z',
   },
 ];
 
@@ -64,6 +57,28 @@ export const mockPortfolio: PortfolioResponse = {
       percentage: 5.6,
     },
   ],
+  accounts: [
+    {
+      account: {
+        id: '00000000-0000-4000-8000-000000000001',
+        user_id: '00000000-0000-4000-8000-000000000002',
+        type: 'CEX_ACCOUNT',
+        identifier: 'mock-account',
+        label: 'Mock Portfolio',
+        exchange_id: 'fixture',
+        created_at: '2026-06-01T00:00:00Z',
+        updated_at: '2026-06-01T00:00:00Z',
+      },
+      total_value_usd: { value: '125432.50', scale: 2 },
+      total_value_local: { value: '168234500', scale: 0 },
+      percentage: 100,
+      assets: [],
+    },
+  ],
+  unattributed_assets: [],
+  unattributed_value_usd: { value: '0', scale: 0 },
+  unattributed_value_local: { value: '0', scale: 0 },
+  allocation_complete: true,
   timestamp: new Date().toISOString(),
 };
 
@@ -182,7 +197,7 @@ export const mockTaxSummary: TaxSummary = {
   taxable_income: { value: '10980000', scale: 0 },
   deduction: { value: '2500000', scale: 0 },
   tax_amount: { value: '2415600', scale: 0 },
-  tax_rate: 0.22,
+  tax_rate: '22%',
   currency: 'KRW',
 };
 

@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+// See contracts/http/password-policy-v1.json; never normalize or trim secrets.
+export const newPasswordSchema = z.string()
+  .refine(value => !/[\uD800-\uDFFF]/u.test(value), { message: '유효한 문자로 비밀번호를 입력해주세요' })
+  .refine(value => [...value].length >= 8, { message: '비밀번호는 8자 이상이어야 합니다' })
+  .refine(value => new TextEncoder().encode(value).length <= 72, { message: '비밀번호는 UTF-8 기준 72바이트 이내로 입력해주세요' })
+  .regex(/\p{Lu}/u, { message: '대문자를 포함해야 합니다' })
+  .regex(/\p{Ll}/u, { message: '소문자를 포함해야 합니다' })
+  .regex(/\p{Nd}/u, { message: '숫자를 포함해야 합니다' })
+  .regex(/[\p{P}\p{S}]/u, { message: '특수문자를 포함해야 합니다' });
+
 export const loginSchema = z.object({
   email: z
     .string()
@@ -7,8 +17,7 @@ export const loginSchema = z.object({
     .email({ message: '유효한 이메일을 입력해주세요' }),
   password: z
     .string()
-    .min(1, { message: '비밀번호를 입력해주세요' })
-    .min(8, { message: '비밀번호는 8자 이상이어야 합니다' }),
+    .min(1, { message: '비밀번호를 입력해주세요' }),
 });
 
 export const registerSchema = z
@@ -17,13 +26,7 @@ export const registerSchema = z
       .string()
       .min(1, { message: '이메일을 입력해주세요' })
       .email({ message: '유효한 이메일을 입력해주세요' }),
-    password: z
-      .string()
-      .min(1, { message: '비밀번호를 입력해주세요' })
-      .min(8, { message: '비밀번호는 8자 이상이어야 합니다' })
-      .regex(/[A-Z]/, { message: '대문자를 포함해야 합니다' })
-      .regex(/[a-z]/, { message: '소문자를 포함해야 합니다' })
-      .regex(/[0-9]/, { message: '숫자를 포함해야 합니다' }),
+    password: newPasswordSchema,
     confirmPassword: z
       .string()
       .min(1, { message: '비밀번호 확인을 입력해주세요' }),
@@ -50,13 +53,7 @@ export const changePasswordSchema = z
     currentPassword: z
       .string()
       .min(1, { message: '현재 비밀번호를 입력해주세요' }),
-    newPassword: z
-      .string()
-      .min(1, { message: '새 비밀번호를 입력해주세요' })
-      .min(8, { message: '비밀번호는 8자 이상이어야 합니다' })
-      .regex(/[A-Z]/, { message: '대문자를 포함해야 합니다' })
-      .regex(/[a-z]/, { message: '소문자를 포함해야 합니다' })
-      .regex(/[0-9]/, { message: '숫자를 포함해야 합니다' }),
+    newPassword: newPasswordSchema,
     confirmPassword: z
       .string()
       .min(1, { message: '새 비밀번호 확인을 입력해주세요' }),
